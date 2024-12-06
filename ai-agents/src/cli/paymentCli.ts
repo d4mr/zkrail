@@ -2,8 +2,16 @@ import { ChatOpenAI } from "@langchain/openai";
 import { PaymentIntent, PaymentQuotation } from '../types/payment';
 import axios from 'axios';
 import { BaseMessage, AIMessage } from "@langchain/core/messages";
+import { CdpAgentkit } from "@coinbase/cdp-agentkit-core";
+import { USDC_CONTRACT_ADDRESS } from '../config/constants';
+import { parseUnits } from 'viem';
+import { importWallet } from '../lib/coinbase';
+
 
 const PAYMENT_SERVER_URL = 'http://localhost:3000';
+const ERC20_ABI = [
+  'function approve(address spender, uint256 amount) external returns (bool)'
+] as const;
 
 interface ExtractedPayment {
   amount: number;
@@ -12,11 +20,47 @@ interface ExtractedPayment {
 
 export class PaymentCli {
   private llm: ChatOpenAI;
+  private agentkit: CdpAgentkit;
 
   constructor() {
     this.llm = new ChatOpenAI({
       model: "gpt-4-turbo-preview",
     });
+    this.initializeAgentkit();
+  }
+
+  private async initializeAgentkit() {
+    this.agentkit = await CdpAgentkit.configureWithWallet({
+      networkId: process.env.NETWORK_ID || 'base-sepolia'
+    });
+  }
+
+  private async approveUSDC(amount: number, spenderAddress: string): Promise<string> {
+    try {
+        const wallet = await importWallet();
+
+      const approvalAmount = parseUnits((amount * 1.5).toString(), 6);
+      
+      const approveContract = await wallet.invokeContract({
+        contractAddress: USDC_CONTRACT_ADDRESS,
+        method: "approve",
+        args: {
+          spender: spenderAddress,
+          value: approvalAmount.toString()
+        },
+        abi: ERC20_ABI,
+      });
+
+      const approveTx = await approveContract.wait();
+      if (!approveTx) {
+        throw new Error('Failed to approve USDC spend');
+      }
+
+      return `Approved ${amount * 1.5} USDC for ${spenderAddress}. Transaction hash: ${approveTx.getTransactionHash()}`;
+    } catch (error) {
+      console.error('Approval failed:', error);
+      throw new Error('Failed to approve USDC transfer');
+    }
   }
 
   private async extractPaymentDetails(prompt: string): Promise<ExtractedPayment> {
@@ -74,13 +118,13 @@ export class PaymentCli {
       const quotation: PaymentQuotation = quotationResponse.data;
       console.log("Received quotation:", quotation);
 
-      // Step 3: Process the payment
-      console.log("Processing payment...");
-      const paymentResponse = await axios.post(
-        `${PAYMENT_SERVER_URL}/api/payment/process`,
-        quotation
+      // Step 3: Approve USDC transfer (150% of amount)
+      console.log("Approving USDC transfer...");
+      const approvalResult = await this.approveUSDC(
+        quotation.cryptoAmount,
+        quotation.walletAddress
       );
-      console.log("Payment completed:", paymentResponse.data);
+      console.log("Approval completed:", approvalResult);
 
     } catch (error) {
       console.error("Error processing payment prompt:", error);
