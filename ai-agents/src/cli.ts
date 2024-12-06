@@ -1,6 +1,6 @@
+import 'dotenv/config';
 import { PaymentCli } from './cli/paymentCli';
 import readline from 'readline';
-import 'dotenv/config';
 
 const rl = readline.createInterface({
   input: process.stdin,

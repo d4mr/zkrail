@@ -20,7 +20,7 @@ interface ExtractedPayment {
 
 export class PaymentCli {
   private llm: ChatOpenAI;
-  private agentkit: CdpAgentkit;
+  private agentkit!: CdpAgentkit;
 
   constructor() {
     this.llm = new ChatOpenAI({
