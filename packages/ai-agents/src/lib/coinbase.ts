@@ -39,7 +39,6 @@ export async function importWallet(minEthBalance: number = 0, minUsdcBalance: nu
       });
       console.log(`Created new wallet: ${exportData['walletId']}`);
       process.env.WALLET_DATA = newWalletData;
-      return wallet;
     } else {
       console.log('Existing wallet found. Importing...');
       const walletId = Object.keys(seedData)[0];
@@ -48,10 +47,16 @@ export async function importWallet(minEthBalance: number = 0, minUsdcBalance: nu
       console.log(`Imported existing wallet with ID: ${walletId}`);
     }
 
-    console.log(`Wallet address: ${await wallet.getDefaultAddress()}`);
+    // Get and log the wallet address
+    const address = await wallet.getDefaultAddress();
+    const addressId = await address.getId();
+    console.log('=================================');
+    console.log(`Wallet Address: ${addressId}`);
+    console.log('=================================');
 
     // Fund USDC if needed
     const currentUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
+    console.log(`Current USDC Balance: ${currentUsdcBalance.toString()}`);
     if (currentUsdcBalance.lessThan(minUsdcBalance)) {
       console.log(`Funding wallet with USDC...`);
       await wallet.faucet(Coinbase.assets.Usdc);
@@ -59,6 +64,7 @@ export async function importWallet(minEthBalance: number = 0, minUsdcBalance: nu
 
     // Fund ETH if needed
     const currentEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
+    console.log(`Current ETH Balance: ${currentEthBalance.toString()}`);
     if (currentEthBalance.lessThan(minEthBalance)) {
       console.log(`Funding wallet with ETH...`);
       await wallet.faucet();

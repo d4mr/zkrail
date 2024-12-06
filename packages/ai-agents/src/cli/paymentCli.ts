@@ -8,7 +8,7 @@ import { parseUnits } from 'viem';
 import { importWallet } from '../lib/coinbase';
 
 
-const PAYMENT_SERVER_URL = 'http://localhost:3000';
+const PAYMENT_SERVER_URL = 'http://localhost:4000';
 const ERC20_ABI = [
   'function approve(address spender, uint256 amount) external returns (bool)'
 ] as const;
@@ -24,7 +24,9 @@ export class PaymentCli {
 
   constructor() {
     this.llm = new ChatOpenAI({
-      model: "gpt-4-turbo-preview",
+      modelName: "gpt-4-turbo-preview",
+      temperature: 0,
+      maxTokens: 2000
     });
     this.initializeAgentkit();
   }
