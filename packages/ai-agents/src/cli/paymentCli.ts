@@ -10,7 +10,16 @@ import { importWallet } from '../lib/coinbase';
 
 const PAYMENT_SERVER_URL = 'http://localhost:4000';
 const ERC20_ABI = [
-  'function approve(address spender, uint256 amount) external returns (bool)'
+  {
+    name: 'approve',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'spender', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [{ type: 'bool' }]
+  }
 ] as const;
 
 interface ExtractedPayment {
@@ -39,8 +48,7 @@ export class PaymentCli {
 
   private async approveUSDC(amount: number, spenderAddress: string): Promise<string> {
     try {
-        const wallet = await importWallet();
-
+      const wallet = await importWallet();
       const approvalAmount = parseUnits((amount * 1.5).toString(), 6);
       
       const approveContract = await wallet.invokeContract({
@@ -48,7 +56,7 @@ export class PaymentCli {
         method: "approve",
         args: {
           spender: spenderAddress,
-          value: approvalAmount.toString()
+          amount: approvalAmount.toString()
         },
         abi: ERC20_ABI,
       });

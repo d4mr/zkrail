@@ -18,7 +18,7 @@ Coinbase.configure({
   privateKey: apiKeyString.replaceAll("\\n", "\n") as string,
 });
 
-export async function importWallet(minEthBalance: number = 0, minUsdcBalance: number = 0): Promise<Wallet> {
+export async function importWallet(minEthBalance: number = 10, minUsdcBalance: number = 10): Promise<Wallet> {
   console.log(`Importing wallet with minimum ETH balance: ${minEthBalance}, minimum USDC balance: ${minUsdcBalance}`);
   const { WALLET_DATA } = process.env;
 
@@ -59,6 +59,8 @@ export async function importWallet(minEthBalance: number = 0, minUsdcBalance: nu
     console.log(`Current USDC Balance: ${currentUsdcBalance.toString()}`);
     if (currentUsdcBalance.lessThan(minUsdcBalance)) {
       console.log(`Funding wallet with USDC...`);
+      const currentUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
+
       await wallet.faucet(Coinbase.assets.Usdc);
     }
 
@@ -68,6 +70,9 @@ export async function importWallet(minEthBalance: number = 0, minUsdcBalance: nu
     if (currentEthBalance.lessThan(minEthBalance)) {
       console.log(`Funding wallet with ETH...`);
       await wallet.faucet();
+      const currentEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
+
+      console.log(`Current ETH Balance: ${currentEthBalance.toString()}`);
     }
 
     return wallet;
