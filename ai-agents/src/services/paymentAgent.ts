@@ -94,7 +94,7 @@ export class PaymentAgent {
             transferUSDC(this.toolkit, {
               cryptoAmount: args.amount,
               walletAddress: args.recipientAddress,
-              amountInPaisa: args.amount * 8200, // Convert back to paisa for record
+              amountInPaisa: args.amount * 8200,
               cryptoSymbol: 'USDC',
               exchangeRate: 8200
             }),
