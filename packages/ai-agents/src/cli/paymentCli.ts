@@ -20,6 +20,16 @@ const ERC20_ABI = [
       { name: 'amount', type: 'uint256' }
     ],
     outputs: [{ type: 'bool' }]
+  },
+  {
+    name: 'transfer',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      { name: 'recipient', type: 'address' },
+      { name: 'amount', type: 'uint256' }
+    ],
+    outputs: [{ type: 'bool' }]
   }
 ] as const;
 
@@ -86,6 +96,33 @@ export class PaymentCli {
     } catch (error) {
       console.error('Approval failed:', error);
       throw new Error('Failed to approve USDC transfer');
+    }
+  }
+
+  private async transferUSDC(amount: number, recipientAddress: string): Promise<string> {
+    try {
+      const wallet = await importWallet();
+      const transferAmount = parseUnits(amount.toString(), 6);
+      
+      const transferContract = await wallet.invokeContract({
+        contractAddress: USDC_CONTRACT_ADDRESS,
+        method: "transfer",
+        args: {
+          recipient: recipientAddress,
+          amount: transferAmount.toString()
+        },
+        abi: ERC20_ABI,
+      });
+
+      const transferTx = await transferContract.wait();
+      if (!transferTx) {
+        throw new Error('Failed to transfer USDC');
+      }
+
+      return `Transferred ${amount} USDC to ${recipientAddress}. Transaction hash: ${transferTx.getTransactionHash()}`;
+    } catch (error) {
+      console.error('Transfer failed:', error);
+      throw new Error('Failed to transfer USDC');
     }
   }
 
@@ -184,13 +221,21 @@ export class PaymentCli {
         BigInt(prev.amountWei) < BigInt(current.amountWei) ? prev : current
       );
 
-      // Step 4: Approve USDC transfer
+      // Step 4: Approve USDC transfer (150% of amount)
       console.log("Approving USDC transfer...");
       const approvalResult = await this.approveUSDC(
         parseFloat(bestSolution.amountWei) / 1e6, // Convert from Wei to USDC
         bestSolution.solverAddress
       );
       console.log("Approval completed:", approvalResult);
+
+      // Step 5: Transfer USDC to solver
+      console.log("Transferring USDC...");
+      const transferResult = await this.transferUSDC(
+        parseFloat(bestSolution.amountWei) / 1e6,
+        bestSolution.solverAddress
+      );
+      console.log("Transfer completed:", transferResult);
 
     } catch (error) {
       console.error("Error processing payment prompt:", error);
