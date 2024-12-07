@@ -1,6 +1,9 @@
 <div align="center">
   <h1>🚂 ZKRail</h1>
   <p><strong>Decentralized UPI Payments powered by Zero Knowledge Proofs</strong></p>
+
+![image](https://github.com/user-attachments/assets/c90534d8-7b51-42bb-bd2f-6aed89da92ec)
+
   
   <p>
     <a href="#features">Features</a> •
@@ -38,15 +41,8 @@ ZKRail is a revolutionary payment infrastructure that bridges traditional UPI pa
 
 ## 🏗 Architecture
 
-```mermaid
-graph TD
-    A[User] -->|Payment Intent| B[Intent Aggregator]
-    B -->|Match Intent| C[Payment Solvers]
-    C -->|Submit Solution| B
-    B -->|Best Solution| D[ZKRail Contract]
-    D -->|Execute Payment| E[UPI Network]
-    D -->|Verify Proof| F[ZK Verifier]
-```
+![image](https://github.com/user-attachments/assets/3fbc49a3-ee37-42b9-a0f1-2d8fd9594b78)
+
 
 ## 🚀 Technical Stack
 
