@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🚂 ZKRail</h1>
+  <h1>ZKRails</h1>
   <p><strong>Decentralized UPI Payments powered by Zero Knowledge Proofs</strong></p>
 
 ![image](https://github.com/user-attachments/assets/c90534d8-7b51-42bb-bd2f-6aed89da92ec)
