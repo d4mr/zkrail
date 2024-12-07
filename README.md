@@ -1,3 +1,142 @@
+<div align="center">
+  <h1>ZKRails</h1>
+  <p><strong>Decentralized UPI Payments powered by Zero Knowledge Proofs</strong></p>
+
+![image](https://github.com/user-attachments/assets/c90534d8-7b51-42bb-bd2f-6aed89da92ec)
+
+  
+  <p>
+    <a href="#features">Features</a> •
+    <a href="#architecture">Architecture</a> •
+    <a href="#quick-start">Quick Start</a> •
+    <a href="#development">Development</a>
+  </p>
+
+  <p>
+    <img src="https://img.shields.io/badge/Base-Sepolia-blue" alt="Base Sepolia" />
+    <img src="https://img.shields.io/badge/USDC-Payments-green" alt="USDC Payments" />
+    <img src="https://img.shields.io/badge/AI-Powered-purple" alt="AI Powered" />
+  </p>
+</div>
+
+## 🌟 Overview
+
+ZKRail is a revolutionary payment infrastructure that bridges traditional UPI payments with blockchain technology using zero-knowledge proofs. It enables secure, private, and efficient cross-border payments while maintaining the simplicity of UPI transactions.
+
+## 🎯 Use Cases
+
+- **Cross-Border Remittances**: Send money internationally using UPI
+- **Private Business Payments**: Keep transaction details confidential
+- **Decentralized Payment Networks**: Build on top of our intent-based architecture
+- **AI-Enhanced Payments**: Natural language payment processing
+
+## ✨ Features
+
+- **UPI Integration**: Send payments to any UPI ID directly from your crypto wallet
+- **Zero-Knowledge Privacy**: Transaction details are kept private using ZK proofs
+- **AI-Powered CLI**: Natural language interface for initiating payments
+- **Cross-Border Support**: Seamless international payments using USDC
+- **Intent-Based Architecture**: Decentralized intent matching for optimal payment routing
+- **Bond-Based Security**: Solver bonding mechanism ensures payment reliability
+
+## 🏗 Architecture
+
+![image](https://github.com/user-attachments/assets/3fbc49a3-ee37-42b9-a0f1-2d8fd9594b78)
+
+
+## 🚀 Technical Stack
+
+- **Smart Contracts**: Solidity, Foundry
+- **Backend**: TypeScript, Node.js
+- **AI Integration**: GPT-4, LangChain
+- **Blockchain**: Base Sepolia Network
+- **Payment**: USDC, UPI
+- **Privacy**: Zero Knowledge Proofs
+- **SDK**: Coinbase Cloud CDP
+
+## 🚀 Quick Start
+
+1. Install dependencies:
+
+```bash
+yarn install
+```
+
+2. Set up your environment variables:
+
+```bash
+cp .env.example .env
+# Add your API keys and configuration
+```
+
+3. Start the payment CLI:
+
+```bash
+yarn cli
+```
+
+4. Make your first payment:
+
+```bash
+transfer 100 rs to user@upi
+```
+
+## 🛠 Development
+
+### Prerequisites
+
+- Node.js >= v18.18
+- Yarn
+- Foundry
+- Coinbase Cloud API Keys
+
+### Environment Variables
+
+```bash
+CDP_API_KEY_NAME=your_api_key_name
+CDP_API_KEY_PRIVATE_KEY=your_private_key
+OPENAI_API_KEY=your_openai_key
+```
+
+### Local Setup
+
+1. Clone the repository:
+
+```bash
+git clone https://github.com/your-username/zkrail.git
+cd zkrail
+```
+
+2. Install dependencies:
+
+```bash
+yarn install
+```
+
+3. Start local blockchain:
+
+```bash
+yarn chain
+```
+
+4. Deploy contracts:
+
+```bash
+yarn deploy
+```
+
+5. Run the development server:
+
+```bash
+yarn dev
+```
+
+## 📜 License
+
+MIT License - see [LICENSE](LICENSE) for details
+
+---
+
 # 🏗 Scaffold-ETH 2
 
 <h4 align="center">
