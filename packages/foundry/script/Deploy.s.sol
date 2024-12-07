@@ -1,16 +1,31 @@
-//SPDX-License-Identifier: MIT
-pragma solidity ^0.8.19;
+pragma solidity ^0.8.20;
 
-import "./DeployHelpers.s.sol";
-import { DeployYourContract } from "./DeployYourContract.s.sol";
+import "forge-std/Script.sol";
+import "../contracts/rails/ZKRailUPI.sol";
+import "@openzeppelin/contracts/utils/Create2.sol";
 
-contract DeployScript is ScaffoldETHDeploy {
-  function run() external {
-    DeployYourContract deployYourContract = new DeployYourContract();
-    deployYourContract.run();
+contract DeployZKRail is Script {
+    bytes32 public constant SALT = bytes32(uint256(0x1234));
+    // OpenZeppelin's Create2 Deployer address (same on all chains)
+    address constant CREATE2_DEPLOYER =
+        0x4e59b44847b379578588920cA78FbF26c0B4956C;
 
-    // deploy more contracts here
-    // DeployMyContract deployMyContract = new DeployMyContract();
-    // deployMyContract.run();
-  }
+    function run() external {
+        uint256 deployerPrivateKey = vm.envUint("PRIVATE_KEY");
+        vm.startBroadcast(deployerPrivateKey);
+
+        // Compute the deployment address
+        bytes memory creationCode = type(ZKRailUPI).creationCode;
+        address computedAddress = Create2.computeAddress(
+            SALT,
+            keccak256(creationCode),
+            CREATE2_DEPLOYER
+        );
+        console.log("Computed deployment address:", computedAddress);
+
+        address token = Create2.deploy(0, SALT, creationCode);
+        require(token == computedAddress, "Deployment address mismatch");
+
+        vm.stopBroadcast();
+    }
 }

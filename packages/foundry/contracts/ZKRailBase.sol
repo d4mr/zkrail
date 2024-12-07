@@ -61,12 +61,14 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
     function _hashIntentSolution(
         IntentSolution calldata solution
     ) internal pure returns (bytes32) {
+        bytes32 intentHash = _hashIntent(solution.intent);
+
         return
             keccak256(
                 abi.encode(
                     INTENT_SOLUTION_TYPEHASH,
                     solution.intentId,
-                    _hashIntent(solution.intent),
+                    intentHash,
                     solution.paymentToken,
                     solution.paymentAmount,
                     solution.bondToken,
