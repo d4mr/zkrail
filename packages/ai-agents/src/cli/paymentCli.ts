@@ -3,13 +3,13 @@ import { PaymentIntent, PaymentQuotation } from '../types/payment';
 import axios from 'axios';
 import { BaseMessage, AIMessage } from "@langchain/core/messages";
 import { CdpAgentkit } from "@coinbase/cdp-agentkit-core";
-import { USDC_CONTRACT_ADDRESS } from '../config/constants';
+import { USDC_CONTRACT_ADDRESS, ZKRAIL_UPI_ADDRESS } from '../config/constants';
 import { parseUnits } from 'viem';
 import { importWallet } from '../lib/coinbase';
+import { ethers } from 'ethers';
 
-
-const PAYMENT_SERVER_URL = 'http://localhost:4000';
 const INTENT_AGGREGATOR_URL = 'https://zkrail-intent-aggregator.d4mr.workers.dev';
+
 const ERC20_ABI = [
   {
     name: 'approve',
@@ -33,6 +33,53 @@ const ERC20_ABI = [
   }
 ] as const;
 
+const ZKRAIL_ABI = [
+  {
+    name: 'calculateTotalAmount',
+    type: 'function',
+    stateMutability: 'view',
+    inputs: [{ name: 'paymentAmount', type: 'uint256' }],
+    outputs: [{ type: 'uint256' }]
+  },
+  {
+    name: 'commitToSolution',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [
+      {
+        name: 'solution',
+        type: 'tuple',
+        components: [
+          { name: 'intentId', type: 'bytes32' },
+          { 
+            name: 'intent',
+            type: 'tuple',
+            components: [
+              { name: 'railType', type: 'string' },
+              { name: 'recipientAddress', type: 'string' },
+              { name: 'railAmount', type: 'uint256' }
+            ]
+          },
+          { name: 'paymentToken', type: 'address' },
+          { name: 'paymentAmount', type: 'uint256' },
+          { name: 'bondToken', type: 'address' },
+          { name: 'bondAmount', type: 'uint256' },
+          { name: 'intentCreator', type: 'address' }
+        ]
+      },
+      { name: 'signature', type: 'bytes' }
+    ],
+    outputs: []
+  },
+  {
+    name: 'settle',
+    type: 'function',
+    stateMutability: 'nonpayable',
+    inputs: [{ name: 'intentId', type: 'bytes32' }],
+    outputs: []
+  }
+] as const;
+
 interface ExtractedPayment {
   amount: number;
   upiId: string;
@@ -51,6 +98,12 @@ interface PaymentSolution {
 
 interface IntentResponse {
   intentId: string;
+}
+
+interface IntentState {
+  id: string;
+  state: 'CREATED' | 'SOLUTION_SELECTED' | 'PAYMENT_CLAIMED';
+  resolutionTxHash?: string;
 }
 
 export class PaymentCli {
@@ -158,7 +211,7 @@ export class PaymentCli {
     }
   }
 
-  private async getSolutionsWithRetry(intentId: string, maxRetries = 50, delaySeconds = 3): Promise<PaymentSolution[]> {
+  private async getSolutionsWithRetry(intentId: string, maxRetries = 150, delaySeconds = 3): Promise<PaymentSolution[]> {
     for (let attempt = 1; attempt <= maxRetries; attempt++) {
       console.log(`Fetching solutions (attempt ${attempt}/${maxRetries})...`);
       
@@ -178,6 +231,95 @@ export class PaymentCli {
     }
     
     throw new Error(`No solutions available after ${maxRetries} attempts`);
+  }
+
+  private async pollIntentState(intentId: string, targetState: string, maxAttempts = 50): Promise<void> {
+    for (let i = 0; i < maxAttempts; i++) {
+      const response = await axios.get<IntentState>(
+        `${INTENT_AGGREGATOR_URL}/api/intents/${intentId}`
+      );
+      
+      if (response.data.state === targetState) {
+        return;
+      }
+      
+      await new Promise(resolve => setTimeout(resolve, 3000)); // Wait 3 seconds between polls
+    }
+    throw new Error(`Intent did not reach ${targetState} state after ${maxAttempts} attempts`);
+  }
+
+  private async commitToSolution(solution: PaymentSolution, intentDetails: any): Promise<string> {
+    const wallet = await importWallet();
+
+    console.log({solution, intentDetails});
+    
+    // First get the total amount needed from contract
+    const provider = new ethers.JsonRpcProvider("https://base-sepolia.g.alchemy.com/v2/t2e7jYYxPdWNUSNSmiLKfQ33eGTfGAJn");
+    const zkrailContract = new ethers.Contract(ZKRAIL_UPI_ADDRESS, ZKRAIL_ABI, provider);
+    const totalAmount = await zkrailContract.calculateTotalAmount(solution.amountWei);
+
+    console.log({totalAmount});
+    
+    // Get wallet address first
+    const walletAddress = await wallet.getAddress("primary");
+    
+    // Commit to the solution using the provided signature
+    const commitContract = await wallet.invokeContract({
+      contractAddress: ZKRAIL_UPI_ADDRESS,
+      method: "commitToSolution",
+      args: {
+        solution: {
+          intentId: solution.intentId,
+          intent: {
+            railType: "UPI",
+            recipientAddress: intentDetails.recipientAddress,
+            railAmount: intentDetails.railAmount
+          },
+          paymentToken: USDC_CONTRACT_ADDRESS,
+          paymentAmount: solution.amountWei,
+          bondToken: USDC_CONTRACT_ADDRESS,
+          bondAmount: totalAmount.toString(),
+          intentCreator: walletAddress
+        },
+        signature: solution.signature // Use the signature from the solution
+      },
+      abi: ZKRAIL_ABI,
+    });
+
+    const tx = await commitContract.wait();
+    if (!tx) {
+      throw new Error('Failed to commit to solution');
+    }
+
+    const txHash = tx.getTransactionHash();
+    if (!txHash) {
+      throw new Error('No transaction hash returned');
+    }
+
+    return txHash;
+  }
+
+  private async settleSolution(intentId: string): Promise<string> {
+    const wallet = await importWallet();
+    
+    const settleContract = await wallet.invokeContract({
+      contractAddress: ZKRAIL_UPI_ADDRESS,
+      method: "settle",
+      args: { intentId },
+      abi: ZKRAIL_ABI,
+    });
+
+    const tx = await settleContract.wait();
+    if (!tx) {
+      throw new Error('Failed to settle solution');
+    }
+
+    const txHash = tx.getTransactionHash();
+    if (!txHash) {
+      throw new Error('No transaction hash returned');
+    }
+
+    return txHash;
   }
 
   async processPaymentPrompt(prompt: string) {
@@ -230,12 +372,34 @@ export class PaymentCli {
       console.log("Approval completed:", approvalResult);
 
       // Step 5: Transfer USDC to solver
-      console.log("Transferring USDC...");
-      const transferResult = await this.transferUSDC(
-        parseFloat(bestSolution.amountWei) / 1e6,
-        bestSolution.solverAddress
+      // console.log("Transferring USDC...");
+      // const transferResult = await this.transferUSDC(
+      //   parseFloat(bestSolution.amountWei) / 1e6,
+      //   bestSolution.solverAddress
+      // );
+      // console.log("Transfer completed:", transferResult);
+
+      // Step 4: Commit to solution
+      console.log("Committing to solution...");
+      const commitTxHash = await this.commitToSolution(bestSolution, intent);
+      console.log("Committed to solution:", commitTxHash);
+
+      // Step 5: Accept the solution
+      console.log("Accepting solution...");
+      await axios.post(
+        `${INTENT_AGGREGATOR_URL}/api/solutions/${bestSolution.id}/accept`,
+        { commitmentTxHash: commitTxHash }
       );
-      console.log("Transfer completed:", transferResult);
+      console.log("Solution accepted");
+
+      // Step 6: Wait for payment to be claimed
+      console.log("Waiting for payment to be claimed...");
+      await this.pollIntentState(bestSolution.intentId, 'PAYMENT_CLAIMED');
+      
+      // Step 7: Settle the solution
+      console.log("Settling solution...");
+      const settleTxHash = await this.settleSolution(bestSolution.intentId);
+      console.log("Solution settled:", settleTxHash);
 
     } catch (error) {
       console.error("Error processing payment prompt:", error);

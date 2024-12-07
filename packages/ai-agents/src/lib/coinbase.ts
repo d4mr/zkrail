@@ -64,22 +64,22 @@ export async function importWallet(minEthBalance: number = 10, minUsdcBalance: n
     // Fund USDC if needed
     const currentUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
     console.log(`Current USDC Balance: ${currentUsdcBalance.toString()}`);
-    if (currentUsdcBalance.lessThan(minUsdcBalance)) {
-      console.log(`Funding wallet with USDC...`);
-      await wallet.faucet(Coinbase.assets.Usdc);
-      const newUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
-      console.log(`New USDC Balance: ${newUsdcBalance.toString()}`);
-    }
+    // if (currentUsdcBalance.lessThan(minUsdcBalance)) {
+    //   console.log(`Funding wallet with USDC...`);
+    //   await wallet.faucet(Coinbase.assets.Usdc);
+    //   const newUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
+    //   console.log(`New USDC Balance: ${newUsdcBalance.toString()}`);
+    // }
 
     // Fund ETH if needed
     const currentEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
     console.log(`Current ETH Balance: ${currentEthBalance.toString()}`);
-    if (currentEthBalance.lessThan(minEthBalance)) {
-      console.log(`Funding wallet with ETH...`);
-      await wallet.faucet();
-      const newEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
-      console.log(`New ETH Balance: ${newEthBalance.toString()}`);
-    }
+    // if (currentEthBalance.lessThan(minEthBalance)) {
+    //   console.log(`Funding wallet with ETH...`);
+    //   await wallet.faucet();
+    //   const newEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
+    //   console.log(`New ETH Balance: ${newEthBalance.toString()}`);
+    // }
 
     return wallet;
   } catch (e) {

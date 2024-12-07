@@ -9,7 +9,9 @@
     "dev": "ts-node ./api/server.ts",
     "cli": "ts-node ./cli.ts",
     "server": "ts-node ./server/index.ts",
-    "dev:all": "concurrently \"npm run dev\" \"npm run cli\""
+    "dev:all": "concurrently \"npm run dev\" \"npm run cli\"",
+    "sign-solution": "ts-node ./scripts/signSolutionScript.ts",
+    "run-solution": "ts-node ./scripts/runSolution.ts"
   },
   "dependencies": {
     "@coinbase/cdp-agentkit-core": "^0.0.6",
