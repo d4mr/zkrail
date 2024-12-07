@@ -7,6 +7,23 @@ import { USDC_CONTRACT_ADDRESS, ZKRAIL_UPI_ADDRESS } from '../config/constants';
 import { parseUnits } from 'viem';
 import { importWallet } from '../lib/coinbase';
 import { ethers } from 'ethers';
+import { keccak256, toBytes } from 'viem';
+
+// ASCII Art for CLI
+console.log(`
+
+  $$$$$$$$\ $$\   $$\       $$$$$$$\   $$$$$$\  $$$$$$\ $$\       $$$$$$\  
+  \____$$  |$$ | $$  |      $$  __$$\ $$  __$$\ \_$$  _|$$ |     $$  __$$\ 
+      $$  / $$ |$$  /       $$ |  $$ |$$ /  $$ |  $$ |  $$ |     $$ /  \__|
+     $$  /  $$$$$  /        $$$$$$$  |$$$$$$$$ |  $$ |  $$ |     \$$$$$$\  
+    $$  /   $$  $$<         $$  __$$< $$  __$$ |  $$ |  $$ |      \____$$\ 
+   $$  /    $$ |\$$\        $$ |  $$ |$$ |  $$ |  $$ |  $$ |     $$\   $$ |
+  $$$$$$$$\ $$ | \$$\       $$ |  $$ |$$ |  $$ |$$$$$$\ $$$$$$$$\\$$$$$$  |
+  \________|\__|  \__|      \__|  \__|\__|  \__|\______|\________|\______/ 
+                                                                           
+                                                                           
+                                                                           
+  `);
 
 const INTENT_AGGREGATOR_URL = 'https://zkrail-intent-aggregator.d4mr.workers.dev';
 
@@ -33,52 +50,7 @@ const ERC20_ABI = [
   }
 ] as const;
 
-const ZKRAIL_ABI = [
-  {
-    name: 'calculateTotalAmount',
-    type: 'function',
-    stateMutability: 'view',
-    inputs: [{ name: 'paymentAmount', type: 'uint256' }],
-    outputs: [{ type: 'uint256' }]
-  },
-  {
-    name: 'commitToSolution',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [
-      {
-        name: 'solution',
-        type: 'tuple',
-        components: [
-          { name: 'intentId', type: 'bytes32' },
-          { 
-            name: 'intent',
-            type: 'tuple',
-            components: [
-              { name: 'railType', type: 'string' },
-              { name: 'recipientAddress', type: 'string' },
-              { name: 'railAmount', type: 'uint256' }
-            ]
-          },
-          { name: 'paymentToken', type: 'address' },
-          { name: 'paymentAmount', type: 'uint256' },
-          { name: 'bondToken', type: 'address' },
-          { name: 'bondAmount', type: 'uint256' },
-          { name: 'intentCreator', type: 'address' }
-        ]
-      },
-      { name: 'signature', type: 'bytes' }
-    ],
-    outputs: []
-  },
-  {
-    name: 'settle',
-    type: 'function',
-    stateMutability: 'nonpayable',
-    inputs: [{ name: 'intentId', type: 'bytes32' }],
-    outputs: []
-  }
-] as const;
+const ZKRAIL_ABI = [{"inputs":[],"name":"AlreadyCommitted","type":"error"},{"inputs":[],"name":"AlreadySettled","type":"error"},{"inputs":[],"name":"ECDSAInvalidSignature","type":"error"},{"inputs":[{"internalType":"uint256","name":"length","type":"uint256"}],"name":"ECDSAInvalidSignatureLength","type":"error"},{"inputs":[{"internalType":"bytes32","name":"s","type":"bytes32"}],"name":"ECDSAInvalidSignatureS","type":"error"},{"inputs":[],"name":"IntentNotFound","type":"error"},{"inputs":[],"name":"InvalidProof","type":"error"},{"inputs":[],"name":"InvalidShortString","type":"error"},{"inputs":[],"name":"InvalidSignature","type":"error"},{"inputs":[{"internalType":"uint256","name":"currentTime","type":"uint256"},{"internalType":"uint256","name":"requiredTime","type":"uint256"}],"name":"InvalidTimeWindow","type":"error"},{"inputs":[{"internalType":"address","name":"token","type":"address"}],"name":"SafeERC20FailedOperation","type":"error"},{"inputs":[{"internalType":"string","name":"str","type":"string"}],"name":"StringTooLong","type":"error"},{"inputs":[{"internalType":"address","name":"caller","type":"address"},{"internalType":"address","name":"required","type":"address"}],"name":"UnauthorizedCaller","type":"error"},{"anonymous":false,"inputs":[],"name":"EIP712DomainChanged","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"intentId","type":"bytes32"},{"indexed":true,"internalType":"address","name":"triggeredBy","type":"address"}],"name":"EmergencyTimeoutTriggered","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"intentId","type":"bytes32"},{"indexed":true,"internalType":"address","name":"maker","type":"address"},{"indexed":true,"internalType":"address","name":"taker","type":"address"},{"indexed":false,"internalType":"string","name":"railType","type":"string"},{"indexed":false,"internalType":"string","name":"recipientAddress","type":"string"},{"indexed":false,"internalType":"uint256","name":"railAmount","type":"uint256"},{"indexed":false,"internalType":"address","name":"paymentToken","type":"address"},{"indexed":false,"internalType":"uint256","name":"paymentAmount","type":"uint256"},{"indexed":false,"internalType":"address","name":"bondToken","type":"address"},{"indexed":false,"internalType":"uint256","name":"bondAmount","type":"uint256"}],"name":"IntentSolutionCommitted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"intentId","type":"bytes32"},{"indexed":true,"internalType":"address","name":"maker","type":"address"}],"name":"PaymentProofSubmitted","type":"event"},{"anonymous":false,"inputs":[{"indexed":true,"internalType":"bytes32","name":"intentId","type":"bytes32"},{"indexed":true,"internalType":"address","name":"taker","type":"address"}],"name":"SolutionSettled","type":"event"},{"inputs":[],"name":"DOMAIN_SEPARATOR","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[],"name":"INTENT_SOLUTION_TYPEHASH","outputs":[{"internalType":"bytes32","name":"","type":"bytes32"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"uint256","name":"paymentAmount","type":"uint256"}],"name":"calculateTotalAmount","outputs":[{"internalType":"uint256","name":"","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"}],"name":"canSubmitProof","outputs":[{"internalType":"bool","name":"canProve","type":"bool"},{"internalType":"uint8","name":"reasonCode","type":"uint8"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"}],"name":"canTimeout","outputs":[{"internalType":"bool","name":"canTimeout","type":"bool"},{"internalType":"uint256","name":"remainingTime","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"components":[{"internalType":"bytes32","name":"intentId","type":"bytes32"},{"internalType":"string","name":"railType","type":"string"},{"internalType":"string","name":"recipientAddress","type":"string"},{"internalType":"uint256","name":"railAmount","type":"uint256"},{"internalType":"address","name":"paymentToken","type":"address"},{"internalType":"uint256","name":"paymentAmount","type":"uint256"},{"internalType":"address","name":"bondToken","type":"address"},{"internalType":"uint256","name":"bondAmount","type":"uint256"},{"internalType":"address","name":"intentCreator","type":"address"}],"internalType":"struct IZKRail.IntentSolution","name":"solution","type":"tuple"},{"internalType":"bytes","name":"signature","type":"bytes"}],"name":"commitToSolution","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[],"name":"eip712Domain","outputs":[{"internalType":"bytes1","name":"fields","type":"bytes1"},{"internalType":"string","name":"name","type":"string"},{"internalType":"string","name":"version","type":"string"},{"internalType":"uint256","name":"chainId","type":"uint256"},{"internalType":"address","name":"verifyingContract","type":"address"},{"internalType":"bytes32","name":"salt","type":"bytes32"},{"internalType":"uint256[]","name":"extensions","type":"uint256[]"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"}],"name":"getIntentState","outputs":[{"components":[{"internalType":"bytes32","name":"intentId","type":"bytes32"},{"internalType":"string","name":"railType","type":"string"},{"internalType":"string","name":"recipientAddress","type":"string"},{"internalType":"uint256","name":"railAmount","type":"uint256"},{"internalType":"address","name":"paymentToken","type":"address"},{"internalType":"uint256","name":"paymentAmount","type":"uint256"},{"internalType":"address","name":"bondToken","type":"address"},{"internalType":"uint256","name":"bondAmount","type":"uint256"},{"internalType":"address","name":"intentCreator","type":"address"}],"internalType":"struct IZKRail.IntentSolution","name":"solution","type":"tuple"},{"internalType":"bool","name":"isSettled","type":"bool"},{"internalType":"uint256","name":"commitTime","type":"uint256"}],"stateMutability":"view","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"}],"name":"resolveByTimeout","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"},{"internalType":"bytes","name":"proof","type":"bytes"}],"name":"resolveWithProof","outputs":[],"stateMutability":"nonpayable","type":"function"},{"inputs":[{"internalType":"bytes32","name":"intentId","type":"bytes32"}],"name":"settle","outputs":[],"stateMutability":"nonpayable","type":"function"}] as const;
 
 interface ExtractedPayment {
   amount: number;
@@ -103,7 +75,6 @@ interface IntentResponse {
 interface IntentState {
   id: string;
   state: 'CREATED' | 'SOLUTION_SELECTED' | 'PAYMENT_CLAIMED';
-  resolutionTxHash?: string;
 }
 
 export class PaymentCli {
@@ -128,13 +99,13 @@ export class PaymentCli {
   private async approveUSDC(amount: number, spenderAddress: string): Promise<string> {
     try {
       const wallet = await importWallet();
-      const approvalAmount = parseUnits((amount * 1.5).toString(), 6);
+      const approvalAmount = parseUnits((amount * 3.5).toString(), 6);
       
       const approveContract = await wallet.invokeContract({
         contractAddress: USDC_CONTRACT_ADDRESS,
         method: "approve",
         args: {
-          spender: spenderAddress,
+          spender: ZKRAIL_UPI_ADDRESS,
           amount: approvalAmount.toString()
         },
         abi: ERC20_ABI,
@@ -145,7 +116,7 @@ export class PaymentCli {
         throw new Error('Failed to approve USDC spend');
       }
 
-      return `Approved ${amount * 1.5} USDC for ${spenderAddress}. Transaction hash: ${approveTx.getTransactionHash()}`;
+      return `Approved ${amount * 3.5} USDC for ${USDC_CONTRACT_ADDRESS}. Transaction hash: ${approveTx.getTransactionHash()}`;
     } catch (error) {
       console.error('Approval failed:', error);
       throw new Error('Failed to approve USDC transfer');
@@ -250,38 +221,45 @@ export class PaymentCli {
 
   private async commitToSolution(solution: PaymentSolution, intentDetails: any): Promise<string> {
     const wallet = await importWallet();
-
-    console.log({solution, intentDetails});
+    
+    // Hash the intentId to get a valid bytes32
+    const hashedIntentId = keccak256(toBytes(solution.intentId));
     
     // First get the total amount needed from contract
     const provider = new ethers.JsonRpcProvider("https://base-sepolia.g.alchemy.com/v2/t2e7jYYxPdWNUSNSmiLKfQ33eGTfGAJn");
     const zkrailContract = new ethers.Contract(ZKRAIL_UPI_ADDRESS, ZKRAIL_ABI, provider);
     const totalAmount = await zkrailContract.calculateTotalAmount(solution.amountWei);
-
-    console.log({totalAmount});
     
     // Get wallet address first
     const walletAddress = await wallet.getAddress("primary");
-    
-    // Commit to the solution using the provided signature
+
+    // Convert BigInt to string to avoid serialization issues
+    const totalAmountString = totalAmount.toString();
+
+    console.log("Debug info:", {
+      intentId: solution.intentId,
+      hashedIntentId,
+      solutionAmount: solution.amountWei,
+      totalAmount: totalAmountString,
+      signature: solution.signature
+    });
+
     const commitContract = await wallet.invokeContract({
       contractAddress: ZKRAIL_UPI_ADDRESS,
       method: "commitToSolution",
       args: {
-        solution: {
-          intentId: solution.intentId,
-          intent: {
-            railType: "UPI",
-            recipientAddress: intentDetails.recipientAddress,
-            railAmount: intentDetails.railAmount
-          },
-          paymentToken: USDC_CONTRACT_ADDRESS,
-          paymentAmount: solution.amountWei,
-          bondToken: USDC_CONTRACT_ADDRESS,
-          bondAmount: totalAmount.toString(),
-          intentCreator: walletAddress
-        },
-        signature: solution.signature // Use the signature from the solution
+        solution: [
+          hashedIntentId,                                 // bytes32 intentId
+          "UPI",                                         // string railType
+          intentDetails.recipientAddress,                 // string recipientAddress
+          intentDetails.railAmount.toString(),            // uint256 railAmount
+          USDC_CONTRACT_ADDRESS,                         // address paymentToken
+          solution.amountWei.toString(),                 // uint256 paymentAmount
+          USDC_CONTRACT_ADDRESS,                         // address bondToken
+          parseUnits("500", 6).toString(),               // uint256 bondAmount
+          "0xF51aa3a200F1D38aFDF60E948F05e70140b33569"                                  // address intentCreator
+        ],
+        signature: solution.signature
       },
       abi: ZKRAIL_ABI,
     });
@@ -333,7 +311,6 @@ export class PaymentCli {
       // Step 2: Create payment intent
       const intent = {
         paymentToken: USDC_CONTRACT_ADDRESS,
-        paymentTokenAmount: details.amount.toString(),
         railType: "UPI",
         recipientAddress: details.upiId,
         railAmount: details.amount.toString(),
@@ -365,9 +342,12 @@ export class PaymentCli {
 
       // Step 4: Approve USDC transfer (150% of amount)
       console.log("Approving USDC transfer...");
+      const provider = new ethers.JsonRpcProvider("https://base-sepolia.g.alchemy.com/v2/t2e7jYYxPdWNUSNSmiLKfQ33eGTfGAJn");
+      const zkrailContract = new ethers.Contract(ZKRAIL_UPI_ADDRESS, ZKRAIL_ABI, provider);
+      const totalAmount = await zkrailContract.calculateTotalAmount(bestSolution.amountWei);
       const approvalResult = await this.approveUSDC(
-        parseFloat(bestSolution.amountWei) / 1e6, // Convert from Wei to USDC
-        bestSolution.solverAddress
+        parseFloat(totalAmount.toString()) / 1e6, // Use the total amount from contract
+        ZKRAIL_UPI_ADDRESS  // Approve the ZKRail contract to spend
       );
       console.log("Approval completed:", approvalResult);
 
@@ -378,6 +358,7 @@ export class PaymentCli {
       //   bestSolution.solverAddress
       // );
       // console.log("Transfer completed:", transferResult);
+      console.log({bestSolution})
 
       // Step 4: Commit to solution
       console.log("Committing to solution...");
@@ -407,3 +388,5 @@ export class PaymentCli {
     }
   }
 } 
+
+
