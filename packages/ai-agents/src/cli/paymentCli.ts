@@ -11,7 +11,6 @@ import { keccak256, toBytes } from 'viem';
 
 // ASCII Art for CLI
 console.log(`
-
   $$$$$$$$\ $$\   $$\       $$$$$$$\   $$$$$$\  $$$$$$\ $$\       $$$$$$\  
   \____$$  |$$ | $$  |      $$  __$$\ $$  __$$\ \_$$  _|$$ |     $$  __$$\ 
       $$  / $$ |$$  /       $$ |  $$ |$$ /  $$ |  $$ |  $$ |     $$ /  \__|
@@ -19,11 +18,14 @@ console.log(`
     $$  /   $$  $$<         $$  __$$< $$  __$$ |  $$ |  $$ |      \____$$\ 
    $$  /    $$ |\$$\        $$ |  $$ |$$ |  $$ |  $$ |  $$ |     $$\   $$ |
   $$$$$$$$\ $$ | \$$\       $$ |  $$ |$$ |  $$ |$$$$$$\ $$$$$$$$\\$$$$$$  |
-  \________|\__|  \__|      \__|  \__|\__|  \__|\______|\________|\______/ 
-                                                                           
+  \________|\__|  \__|      \__|  \__|\__|  \__|\______|\________|\______/                                                                        
                                                                            
                                                                            
   `);
+
+  console.log(`AI Agent ready for payments powered by the CDP AgentKit 🤖
+    
+    `)
 
 const INTENT_AGGREGATOR_URL = 'https://zkrail-intent-aggregator.d4mr.workers.dev';
 
@@ -116,9 +118,9 @@ export class PaymentCli {
         throw new Error('Failed to approve USDC spend');
       }
 
-      return `Approved ${amount * 3.5} USDC for ${USDC_CONTRACT_ADDRESS}. Transaction hash: ${approveTx.getTransactionHash()}`;
+      return `Successfully approved ${amount * 3.5} USDC for ${USDC_CONTRACT_ADDRESS}. Transaction hash: ${approveTx.getTransactionHash()}`;
     } catch (error) {
-      console.error('Approval failed:', error);
+      console.error('Error during approval:', error);
       throw new Error('Failed to approve USDC transfer');
     }
   }
@@ -143,9 +145,9 @@ export class PaymentCli {
         throw new Error('Failed to transfer USDC');
       }
 
-      return `Transferred ${amount} USDC to ${recipientAddress}. Transaction hash: ${transferTx.getTransactionHash()}`;
+      return `Successfully transferred ${amount} USDC to ${recipientAddress}. Transaction hash: ${transferTx.getTransactionHash()}`;
     } catch (error) {
-      console.error('Transfer failed:', error);
+      console.error('Error during transfer:', error);
       throw new Error('Failed to transfer USDC');
     }
   }
@@ -177,7 +179,7 @@ export class PaymentCli {
         upiId: result.upiId
       };
     } catch (error) {
-      console.error('Failed to parse LLM response:', content);
+      console.error('Failed to parse the response:', content);
       throw new Error('Invalid response format from LLM');
     }
   }
@@ -196,12 +198,12 @@ export class PaymentCli {
       }
       
       if (attempt < maxRetries) {
-        console.log(`No solutions yet, waiting ${delaySeconds} seconds before retry...`);
+        console.log(`No solutions found yet, waiting ${delaySeconds} seconds before retry...`);
         await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
       }
     }
     
-    throw new Error(`No solutions available after ${maxRetries} attempts`);
+    throw new Error(`Could not find solutions after ${maxRetries} attempts`);
   }
 
   private async pollIntentState(intentId: string, targetState: string, maxAttempts = 100): Promise<void> {
@@ -315,9 +317,9 @@ export class PaymentCli {
 
   async processPaymentPrompt(prompt: string) {
     try {
-      console.log("Processing payment prompt...");
+      console.log("Processing the payment prompt...");
       
-      // Step 1: Extract payment details using AI
+      // Step 1: Extract payment details
       const details = await this.extractPaymentDetails(prompt);
       console.log("Extracted payment details:", details);
 
@@ -337,7 +339,7 @@ export class PaymentCli {
         intent
       );
       const { intentId } = intentResponse.data;
-      console.log("Intent created:", intentId);
+      console.log("Created intent:", intentId);
 
       // Step 3: Get solutions (quotations) with retry
       console.log("Fetching solutions...");
@@ -362,7 +364,7 @@ export class PaymentCli {
         parseFloat(totalAmount.toString()) / 1e6, // Use the total amount from contract
         ZKRAIL_UPI_ADDRESS  // Approve the ZKRail contract to spend
       );
-      console.log("Approval completed:", approvalResult);
+      console.log("Completed the approval:", approvalResult);
 
       // Step 5: Transfer USDC to solver
       // console.log("Transferring USDC...");
@@ -370,7 +372,7 @@ export class PaymentCli {
       //   parseFloat(bestSolution.amountWei) / 1e6,
       //   bestSolution.solverAddress
       // );
-      // console.log("Transfer completed:", transferResult);
+      // console.log("Completed the transfer:", transferResult);
       console.log({bestSolution})
 
       // Step 4: Commit to solution
@@ -384,7 +386,7 @@ export class PaymentCli {
         `${INTENT_AGGREGATOR_URL}/api/solutions/${bestSolution.id}/accept`,
         { commitmentTxHash: commitTxHash }
       );
-      console.log("Solution accepted");
+      console.log("Accepted the solution");
 
       // Step 6: Wait for payment to be claimed
       console.log("Waiting for payment to be claimed...");
@@ -393,7 +395,7 @@ export class PaymentCli {
       // Step 7: Settle the solution
       console.log("Settling solution...");
       const settleTxHash = await this.settleSolution(bestSolution.intentId);
-      console.log("Solution settled:", settleTxHash);
+      console.log("Settled the solution:", settleTxHash);
 
       // Step 8: Notify API about settlement
       try {
@@ -408,17 +410,15 @@ export class PaymentCli {
             }
           }
         );
-        console.log("Settlement recorded with API");
+        console.log("Recorded the settlement with API");
       } catch (error) {
         console.error("Failed to record settlement with API:", error);
         // Don't throw here as the on-chain settlement was successful
       }
 
     } catch (error) {
-      console.error("Error processing payment prompt:", error);
+      console.error("Encountered an error processing payment prompt:", error);
       throw error;
     }
   }
-} 
-
-
+}

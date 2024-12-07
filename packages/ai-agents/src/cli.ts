@@ -26,5 +26,5 @@ async function promptUser() {
   });
 }
 
-console.log('Payment CLI started. Type your payment command (e.g., "transfer 100 rs to user@upi")');
+console.log('Payment CLI started. Type your payment command (e.g., "transfer 100 rs to rahul@icicbank")');
 promptUser(); 
