@@ -27,7 +27,6 @@ const chainIdSchema = z.number().int().positive();
 // Request schemas
 export const CreateIntentSchema = z.object({
   paymentToken: addressSchema,
-  paymentTokenAmount: tokenAmountSchema,
   railType: railTypeSchema,
   recipientAddress: z.string(), // Different validation per rail type
   railAmount: tokenAmountSchema,

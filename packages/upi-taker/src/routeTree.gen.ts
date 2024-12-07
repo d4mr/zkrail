@@ -19,7 +19,7 @@ import { Route as HomeNavImport } from './routes/home/_nav'
 import { Route as HomeNavScanImport } from './routes/home/_nav.scan'
 import { Route as HomeNavOrdersImport } from './routes/home/_nav.orders'
 import { Route as PayVpaNameIndexImport } from './routes/pay.$vpa.$name/index'
-import { Route as PayVpaNameAmountQuoteImport } from './routes/pay.$vpa.$name/$amount.quote'
+import { Route as PayVpaNameIntentQuoteImport } from './routes/pay.$vpa.$name/$intent.quote'
 
 // Create Virtual Routes
 
@@ -68,9 +68,9 @@ const PayVpaNameIndexRoute = PayVpaNameIndexImport.update({
   getParentRoute: () => rootRoute,
 } as any)
 
-const PayVpaNameAmountQuoteRoute = PayVpaNameAmountQuoteImport.update({
-  id: '/pay/$vpa/$name/$amount/quote',
-  path: '/pay/$vpa/$name/$amount/quote',
+const PayVpaNameIntentQuoteRoute = PayVpaNameIntentQuoteImport.update({
+  id: '/pay/$vpa/$name/$intent/quote',
+  path: '/pay/$vpa/$name/$intent/quote',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -127,11 +127,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayVpaNameIndexImport
       parentRoute: typeof rootRoute
     }
-    '/pay/$vpa/$name/$amount/quote': {
-      id: '/pay/$vpa/$name/$amount/quote'
-      path: '/pay/$vpa/$name/$amount/quote'
-      fullPath: '/pay/$vpa/$name/$amount/quote'
-      preLoaderRoute: typeof PayVpaNameAmountQuoteImport
+    '/pay/$vpa/$name/$intent/quote': {
+      id: '/pay/$vpa/$name/$intent/quote'
+      path: '/pay/$vpa/$name/$intent/quote'
+      fullPath: '/pay/$vpa/$name/$intent/quote'
+      preLoaderRoute: typeof PayVpaNameIntentQuoteImport
       parentRoute: typeof rootRoute
     }
   }
@@ -171,7 +171,7 @@ export interface FileRoutesByFullPath {
   '/home/orders': typeof HomeNavOrdersRoute
   '/home/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
-  '/pay/$vpa/$name/$amount/quote': typeof PayVpaNameAmountQuoteRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRoutesByTo {
@@ -180,7 +180,7 @@ export interface FileRoutesByTo {
   '/home/orders': typeof HomeNavOrdersRoute
   '/home/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
-  '/pay/$vpa/$name/$amount/quote': typeof PayVpaNameAmountQuoteRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRoutesById {
@@ -192,7 +192,7 @@ export interface FileRoutesById {
   '/home/_nav/orders': typeof HomeNavOrdersRoute
   '/home/_nav/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name/': typeof PayVpaNameIndexRoute
-  '/pay/$vpa/$name/$amount/quote': typeof PayVpaNameAmountQuoteRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRouteTypes {
@@ -204,7 +204,7 @@ export interface FileRouteTypes {
     | '/home/orders'
     | '/home/scan'
     | '/pay/$vpa/$name'
-    | '/pay/$vpa/$name/$amount/quote'
+    | '/pay/$vpa/$name/$intent/quote'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -212,7 +212,7 @@ export interface FileRouteTypes {
     | '/home/orders'
     | '/home/scan'
     | '/pay/$vpa/$name'
-    | '/pay/$vpa/$name/$amount/quote'
+    | '/pay/$vpa/$name/$intent/quote'
   id:
     | '__root__'
     | '/'
@@ -222,7 +222,7 @@ export interface FileRouteTypes {
     | '/home/_nav/orders'
     | '/home/_nav/scan'
     | '/pay/$vpa/$name/'
-    | '/pay/$vpa/$name/$amount/quote'
+    | '/pay/$vpa/$name/$intent/quote'
   fileRoutesById: FileRoutesById
 }
 
@@ -230,14 +230,14 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   HomeRoute: typeof HomeRouteWithChildren
   PayVpaNameIndexRoute: typeof PayVpaNameIndexRoute
-  PayVpaNameAmountQuoteRoute: typeof PayVpaNameAmountQuoteRoute
+  PayVpaNameIntentQuoteRoute: typeof PayVpaNameIntentQuoteRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   HomeRoute: HomeRouteWithChildren,
   PayVpaNameIndexRoute: PayVpaNameIndexRoute,
-  PayVpaNameAmountQuoteRoute: PayVpaNameAmountQuoteRoute,
+  PayVpaNameIntentQuoteRoute: PayVpaNameIntentQuoteRoute,
 }
 
 export const routeTree = rootRoute
@@ -253,7 +253,7 @@ export const routeTree = rootRoute
         "/",
         "/home",
         "/pay/$vpa/$name/",
-        "/pay/$vpa/$name/$amount/quote"
+        "/pay/$vpa/$name/$intent/quote"
       ]
     },
     "/": {
@@ -289,8 +289,8 @@ export const routeTree = rootRoute
     "/pay/$vpa/$name/": {
       "filePath": "pay.$vpa.$name/index.tsx"
     },
-    "/pay/$vpa/$name/$amount/quote": {
-      "filePath": "pay.$vpa.$name/$amount.quote.tsx"
+    "/pay/$vpa/$name/$intent/quote": {
+      "filePath": "pay.$vpa.$name/$intent.quote.tsx"
     }
   }
 }

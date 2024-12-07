@@ -1,6 +1,14 @@
 import { createFileRoute, Link, useNavigate, useParams } from '@tanstack/react-router'
 import { useState, useEffect, useCallback } from 'react'
 import { Button, buttonVariants } from "@/components/ui/button"
+import { useMutation } from '@tanstack/react-query'
+import { intentAggregatorApi } from '@/queries/conts'
+import { ConnectButton, useActiveAccount } from 'thirdweb/react'
+import { Loader2 } from 'lucide-react'
+import { client } from '@/client'
+
+export const zkRailUsdc = "0x215D8DC520791a5fECa4D302798D8C47aD7E0588";
+const chainId = 84532;
 
 interface PaymentScreenProps {
   recipient: string
@@ -15,6 +23,7 @@ function RouteComponent() {
   const [amount, setAmount] = useState('')
   const { name, vpa } = Route.useParams();
   const navigate = useNavigate();
+  const account = useActiveAccount();
 
   const handleNumberInput = useCallback((num: string) => {
     if (amount.includes('.') && num === '.') return
@@ -27,15 +36,36 @@ function RouteComponent() {
 
   const handleDelete = useCallback(() => {
     setAmount(prev => prev.slice(0, -1))
-  }, [])
+  }, []);
 
-  const handlePay = () => {
-    const numAmount = parseFloat(amount)
+  const submitIntentMutation = useMutation({
+    mutationFn: async (amount: string) => {
+      if (!account) throw new Error("Wallet not connected");
+
+      return await intentAggregatorApi.post<{ intentId: string }>(`intents`, {
+        json: {
+          paymentToken: zkRailUsdc,
+          railType: "UPI",
+          recipientAddress: vpa,
+          railAmount: amount,
+          creatorAddress: account.address,
+          chainId
+        }
+      }).json()
+    }
+  });
+
+
+  const handlePay = async () => {
+    const numAmount = parseFloat(amount);
     if (!isNaN(numAmount) && numAmount > 0) {
+      const intent = await submitIntentMutation.mutateAsync((numAmount * 100).toString());
+      console.log(intent);
+
       navigate({
-        to: "/pay/$vpa/$name/$amount/quote",
+        to: "/pay/$vpa/$name/$intent/quote",
         params: {
-          name, vpa, amount: numAmount.toString()
+          name, vpa, intent: intent.intentId
         }
       })
     }
@@ -103,10 +133,16 @@ function RouteComponent() {
       </div>
 
       <div className="mt-8 space-y-4">
+        <ConnectButton client={client} />
+
         <Button
           className="w-full btn-glossy"
           onClick={handlePay}
         >
+          {
+            submitIntentMutation.isPending &&
+            <Loader2 className='animate-spin' />
+          }
           Pay
         </Button>
         <Link

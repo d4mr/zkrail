@@ -35,7 +35,6 @@ export const intents = sqliteTable(
   {
     id: text("id").primaryKey(),
     paymentToken: text("payment_token").notNull(),
-    paymentTokenAmount: text("payment_token_amount").notNull(),
 
     railType: text("rail_type").notNull().$type<PaymentRailType>(),
     recipientAddress: text("recipient_address").notNull(),
@@ -60,6 +59,13 @@ export const intents = sqliteTable(
   })
 );
 
+export const intentsRelations = relations(intents, ({ one }) => ({
+  winningSolution: one(solutions, {
+    fields: [intents.winningSolutionId],
+    references: [solutions.id],
+  }),
+}));
+
 export const solutions = sqliteTable(
   "solutions",
   {
@@ -78,7 +84,7 @@ export const solutions = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
 
     commitmentTxHash: text("commitment_tx_hash"),
-    
+
     // Settlement is the optimistic path
     settlementTxHash: text("settlement_tx_hash"),
 

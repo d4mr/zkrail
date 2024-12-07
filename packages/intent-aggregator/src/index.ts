@@ -12,7 +12,7 @@ import { dbMiddleware } from "./db/middleware";
 import { intents, solutions } from "./db/schema";
 import { createSelectSchema } from "drizzle-zod";
 import { apiReference } from "@scalar/hono-api-reference";
-import { eq } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 const api = new OpenAPIHono<Env>();
 // Create Intent
@@ -55,6 +55,33 @@ api.openapi(createIntent, async (c) => {
     .returning();
 
   return c.json({ intentId: intent.id });
+});
+
+const getIntents = createRoute({
+  method: "get",
+  path: "/api/intents",
+  responses: {
+    200: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            intents: z.array(createSelectSchema(intents)),
+          }),
+        },
+      },
+      description: "Intents retrieved successfully",
+    },
+  },
+});
+
+api.openapi(getIntents, async (c) => {
+  const receivedIntents = await c.var.db.query.intents.findMany({
+    with: {
+      winningSolution: true,
+    },
+    orderBy: desc(intents.createdAt),
+  });
+  return c.json({ intents: receivedIntents });
 });
 
 // Get Intent

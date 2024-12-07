@@ -15,60 +15,40 @@ import {IZKRail} from "./interfaces/IZKRail.sol";
 abstract contract ZKRailBase is IZKRail, EIP712 {
     using SafeERC20 for ERC20;
 
-    // EIP-712 type hashes
-    bytes32 public constant INTENT_TYPEHASH =
-        keccak256(
-            "Intent(string railType,string recipientAddress,uint256 railAmount)"
-        );
-
+    // Single typehash for flattened structure
     bytes32 public constant INTENT_SOLUTION_TYPEHASH =
         keccak256(
-            "IntentSolution(bytes32 intentId,Intent intent,address paymentToken,uint256 paymentAmount,address bondToken,uint256 bondAmount,address intentCreator)Intent(string railType,string recipientAddress,uint256 railAmount)"
+            "IntentSolution(bytes32 intentId,string railType,string recipientAddress,uint256 railAmount,address paymentToken,uint256 paymentAmount,address bondToken,uint256 bondAmount,address intentCreator)"
         );
 
-    // Storage
-    mapping(bytes32 => IntentSolution) public solutions;
-    mapping(bytes32 => bool) public isSettled;
-    mapping(bytes32 => uint256) public commitTimes;
-    mapping(bytes32 => address) public intentMakers;
+    // Storage slots
+    mapping(bytes32 => IntentSolution) internal _solutions;
+    mapping(bytes32 => bool) internal _isSettled;
+    mapping(bytes32 => uint256) internal _commitTimes;
+    mapping(bytes32 => address) internal _intentMakers;
 
+    /**
+     * @notice Initialize the base contract
+     * @dev Sets up EIP712 domain separator
+     */
     constructor() EIP712("ZKRail", "1") {}
 
     /**
-     * @notice Hash an intent for EIP-712 signing
-     * @param intent The intent to hash
-     * @return The EIP-712 compatible hash of the intent
-     */
-    function _hashIntent(
-        Intent calldata intent
-    ) internal pure returns (bytes32) {
-        return
-            keccak256(
-                abi.encode(
-                    INTENT_TYPEHASH,
-                    keccak256(bytes(intent.railType)),
-                    keccak256(bytes(intent.recipientAddress)),
-                    intent.railAmount
-                )
-            );
-    }
-
-    /**
-     * @notice Hash a complete solution for EIP-712 signing
+     * @notice Hash an intent solution for EIP-712 signing
      * @param solution The solution to hash
      * @return The EIP-712 compatible hash of the solution
      */
     function _hashIntentSolution(
         IntentSolution calldata solution
     ) internal pure returns (bytes32) {
-        bytes32 intentHash = _hashIntent(solution.intent);
-
         return
             keccak256(
                 abi.encode(
                     INTENT_SOLUTION_TYPEHASH,
                     solution.intentId,
-                    intentHash,
+                    keccak256(bytes(solution.railType)),
+                    keccak256(bytes(solution.recipientAddress)),
+                    solution.railAmount,
                     solution.paymentToken,
                     solution.paymentAmount,
                     solution.bondToken,
@@ -82,68 +62,63 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
      * @notice Verify an EIP-712 signature for a solution
      * @param solution The solution being verified
      * @param signature The signature to verify
-     * @return The recovered signer address
+     * @return signer The recovered signer address
      */
     function _verifySolutionSignature(
         IntentSolution calldata solution,
         bytes calldata signature
-    ) internal view returns (address) {
+    ) internal view returns (address signer) {
         bytes32 digest = _hashTypedDataV4(_hashIntentSolution(solution));
-        return ECDSA.recover(digest, signature);
+        signer = ECDSA.recover(digest, signature);
+        if (signer == address(0)) {
+            revert InvalidSignature();
+        }
     }
 
     /**
-     * @notice Core implementation of solution commitment
-     * @param solution The solution being committed to
-     * @param signature The maker's signature
+     * @inheritdoc IZKRail
      */
     function commitToSolution(
         IntentSolution calldata solution,
         bytes calldata signature
     ) external virtual {
-        // Verify caller is intent creator
-        require(
-            msg.sender == solution.intentCreator,
-            "Only intent creator can commit"
-        );
-        require(
-            commitTimes[solution.intentId] == 0,
-            "Intent already committed"
-        );
+        // Validate caller and state
+        if (msg.sender != solution.intentCreator) {
+            revert UnauthorizedCaller(msg.sender, solution.intentCreator);
+        }
+        if (_commitTimes[solution.intentId] != 0) {
+            revert AlreadyCommitted();
+        }
 
-        // Verify signature and get maker address
+        // Verify signature and get maker
         address maker = _verifySolutionSignature(solution, signature);
-        require(maker != address(0), "Invalid signature");
+        _intentMakers[solution.intentId] = maker;
 
-        // Store maker along with other intent data
-        intentMakers[solution.intentId] = maker;
-
-        // Calculate and transfer total amount from taker
+        // Transfer from taker to contract (needs approval)
         uint256 totalTakerAmount = calculateTotalAmount(solution.paymentAmount);
         ERC20(solution.paymentToken).safeTransferFrom(
             msg.sender,
             address(this),
             totalTakerAmount
         );
-
-        // Transfer bond from maker
         ERC20(solution.bondToken).safeTransferFrom(
             maker,
             address(this),
             solution.bondAmount
         );
 
-        // Store solution details
-        solutions[solution.intentId] = solution;
-        commitTimes[solution.intentId] = block.timestamp;
+        // Update state
+        _solutions[solution.intentId] = solution;
+        _commitTimes[solution.intentId] = block.timestamp;
 
+        // Emit event
         emit IntentSolutionCommitted(
             solution.intentId,
             maker,
             msg.sender,
-            solution.intent.railType,
-            solution.intent.recipientAddress,
-            solution.intent.railAmount,
+            solution.railType,
+            solution.recipientAddress,
+            solution.railAmount,
             solution.paymentToken,
             solution.paymentAmount,
             solution.bondToken,
@@ -152,19 +127,16 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
     }
 
     /**
-     * @notice Calculate total amount including collateral
-     * @param paymentAmount Base payment amount
-     * @return Total amount including collateral
+     * @inheritdoc IZKRail
      */
     function calculateTotalAmount(
         uint256 paymentAmount
-    ) public view returns (uint256) {
+    ) public view virtual returns (uint256) {
         return (paymentAmount * _getCollateralPercentage()) / 100;
     }
 
     /**
-     * @notice Get full intent state
-     * @param intentId The intent to query
+     * @inheritdoc IZKRail
      */
     function getIntentState(
         bytes32 intentId
@@ -173,15 +145,49 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
         view
         returns (
             IntentSolution memory solution,
-            bool _isSettled,
+            bool isSettled,
             uint256 commitTime
         )
     {
         return (
-            solutions[intentId],
-            isSettled[intentId],
-            commitTimes[intentId]
+            _solutions[intentId],
+            _isSettled[intentId],
+            _commitTimes[intentId]
         );
+    }
+
+    /**
+     * @notice Check basic intent validity
+     * @param intentId The intent to validate
+     * @return maker The maker address if valid
+     */
+    function _validateIntent(
+        bytes32 intentId
+    ) internal view returns (address maker) {
+        if (_commitTimes[intentId] == 0) {
+            revert IntentNotFound();
+        }
+        if (_isSettled[intentId]) {
+            revert AlreadySettled();
+        }
+        maker = _intentMakers[intentId];
+        if (maker == address(0)) {
+            revert IntentNotFound();
+        }
+    }
+
+    /**
+     * @notice Check if current time is within valid window
+     * @param commitTime Time intent was committed
+     * @param window Time window to check
+     */
+    function _validateTimeWindow(
+        uint256 commitTime,
+        uint256 window
+    ) internal view {
+        if (block.timestamp < commitTime + window) {
+            revert InvalidTimeWindow(block.timestamp, commitTime + window);
+        }
     }
 
     // Abstract functions to be implemented by specific rails
@@ -196,7 +202,7 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
         bytes calldata proof
     ) internal virtual returns (bool);
 
-    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+    function DOMAIN_SEPARATOR() external view returns (bytes32) {
         return _domainSeparatorV4();
     }
 }
