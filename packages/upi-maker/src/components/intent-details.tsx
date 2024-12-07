@@ -10,9 +10,10 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Skeleton } from './ui/skeleton'
 import { useActiveAccount } from 'thirdweb/react'
 import { keccak256, toBytes, toUnits, toWei, toTokens } from 'thirdweb'
-import { baseSepolia } from 'thirdweb/chains'
+import { baseSepolia } from 'thirdweb/chains';
+import QRCode from "react-qr-code";
 import { intentAggregatorApi } from '@/queries/conts'
-import { solutionsQuery, solutionsQueryOptions } from '@/queries/solutions'
+import { solutionsQueryOptions } from '@/queries/solutions'
 
 // EIP-712 Type Definitions
 const DOMAIN = {
@@ -53,8 +54,8 @@ type IntentMutationArgs = {
 
 export function IntentDetails({ intentId }: { intentId: string }) {
   const [quoteAmount, setQuoteAmount] = useState('')
-  const intentQuery = useQuery(intentQueryOptions(intentId));
-  const solutionsQuery = useQuery(solutionsQueryOptions(intentId));
+  const intentQuery = useQuery({ ...intentQueryOptions(intentId), refetchInterval: 5000 });
+  const solutionsQuery = useQuery({ ...solutionsQueryOptions(intentId), refetchInterval: 5000 });
 
   const account = useActiveAccount();
 
@@ -73,6 +74,7 @@ export function IntentDetails({ intentId }: { intentId: string }) {
       })
 
       intentQuery.refetch();
+      solutionsQuery.refetch();
     }
   })
 
@@ -130,9 +132,26 @@ export function IntentDetails({ intentId }: { intentId: string }) {
     )
   }
 
-  const handlePaymentConfirmation = () => {
-    toast.success("Payment confirmation received. Awaiting settlement.")
-  }
+  const paymentClaimMutation = useMutation({
+    mutationFn: async () => {
+      if (!mySolution?.id) throw new Error("Solution not found");
+
+      await intentAggregatorApi.post(`solutions/${mySolution.id}/claim`, {
+        json: {
+          paymentMetadata: {
+            "transactionId": "UPI/123/456",
+            "timestamp": new Date().toISOString(),
+            "railSpecificData": {}
+          }
+        }
+      })
+
+      toast.success("Payment claimed successfully");
+
+      intentQuery.refetch();
+      solutionsQuery.refetch();
+    }
+  })
 
   if (loading) {
     return (
@@ -182,8 +201,10 @@ export function IntentDetails({ intentId }: { intentId: string }) {
         <CardContent className="space-y-6">
           {intent.state === "SOLUTION_COMMITTED" && (
             <div className="flex justify-center">
-              <div className="w-48 h-48 bg-white flex items-center justify-center text-black rounded-lg">
-                QR Code Stub
+              <div className="w-48 h-48 p-4 bg-white flex items-center justify-center text-black rounded-lg">
+                <QRCode value={
+                  `upi://pay?pa=${intent.recipientAddress}&am=${parseFloat(intent.railAmount) / 100}&cu=INR`
+                } />
               </div>
             </div>
           )}
@@ -214,8 +235,12 @@ export function IntentDetails({ intentId }: { intentId: string }) {
             </div>
           </div>
           <div className="flex items-center space-x-2 p-2 rounded-lg bg-accent/50">
-            <img src="https://cryptologos.cc/logos/polygon-matic-logo.svg?v=025" alt="Polygon Logo" width={20} height={20} />
-            <span className="text-sm text-muted-foreground">Payment will be received on Polygon</span>
+            {/* https://cryptologos.cc/logos/polygon-matic-logo.svg?v=025 */}
+            <img src="https://avatars.githubusercontent.com/u/108554348?v=4" alt="Base Sepolia Logo" width={20} height={20} />
+            <span className="text-sm text-muted-foreground">Payment {
+              intent.state === "SETTLED" || intent.state === "RESOLVED" ? "has been " : "will be "
+            }
+              received on Base Sepolia</span>
           </div>
           {intent.state === "CREATED" && (
             <Button
@@ -240,12 +265,25 @@ export function IntentDetails({ intentId }: { intentId: string }) {
               <Button
                 variant="secondary"
                 className="w-full"
-                onClick={handlePaymentConfirmation}
+                onClick={() => paymentClaimMutation.mutate()}
               >
+                {paymentClaimMutation.isPending && <Loader2 className="animate-spin" />}
                 I have made the payment
               </Button>
             </div>
           )}
+          {
+            intent.state === "SETTLED" && (
+              <div>
+                <div className="p-4 bg-green-500/10 border border-green-500/20 rounded-lg">
+                  <p className="text-sm text-green-500">Taker has settled the payment. Your bond has been refuned.</p>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Transaction Hash: <span className="font-mono">{intent.winningSolution?.settlementTxHash}</span>
+                  </p>
+                </div>
+              </div>
+            )
+          }
         </CardContent>
       </Card>
       <Card>

@@ -120,6 +120,9 @@ const INTENT_NOT_FOUND_ERROR = {
 api.openapi(getIntent, async (c) => {
   const intent = await c.var.db.query.intents.findFirst({
     where: (intents, { eq }) => eq(intents.id, c.req.param("id")),
+    with: {
+      winningSolution: true,
+    },
   });
 
   if (!intent) {

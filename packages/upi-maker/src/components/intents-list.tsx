@@ -39,7 +39,7 @@ export function IntentsList({
               {/* {intent.state === '' && (
                 <Loader2 className="h-5 w-5 text-muted-foreground animate-spin" />
               )} */}
-              {intent.state === 'RESOLVED' && (
+              {intent.state === 'SETTLED' || intent.state === 'RESOLVED' && (
                 <CheckCircle className="h-5 w-5 text-green-500" />
               )}
             </button>

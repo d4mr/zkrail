@@ -12,7 +12,6 @@ function RootComponent() {
     <>
       <ThirdwebProvider>
         <Outlet />
-        <TanStackRouterDevtools position="bottom-right" />
       </ThirdwebProvider>
     </>
   )

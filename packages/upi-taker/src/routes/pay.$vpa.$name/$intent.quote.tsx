@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState, useEffect } from 'react'
 import { Button, buttonVariants } from '@/components/ui/button'
 import { Loader2, HelpCircle, ArrowLeftRight } from 'lucide-react'
@@ -12,13 +12,13 @@ import { Card, CardContent } from '@/components/ui/card'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { solutionsQueryOptions } from '@/queries/solutions'
 import { intentQueryOptions } from '@/queries/intent'
-import { getContract, Hex, keccak256, prepareContractCall, readContract, sendTransaction, stringToHex, toBytes, toTokens, toUnits } from 'thirdweb'
+import { getContract, Hex, keccak256, prepareContractCall, readContract, sendAndConfirmTransaction, sendTransaction, stringToHex, toBytes, toTokens, toUnits } from 'thirdweb'
 import { shortenAddress } from 'thirdweb/utils'
 import { ConnectButton, useActiveAccount } from 'thirdweb/react'
 import { client } from '@/client'
 import { baseSepolia } from 'thirdweb/chains'
 import { zkRailUsdc } from '.'
-import { error } from 'console'
+import { intentAggregatorApi } from '@/queries/conts'
 
 export const zkRailUPI = "0x926B9bD1905CfeC995B0955DE7392bEdECE2FDC9";
 
@@ -28,7 +28,7 @@ export const Route = createFileRoute('/pay/$vpa/$name/$intent/quote')({
 
 // Helper for converting intent ID to bytes32
 
-function intentIdToBytes32(intentId: string): `0x${string}` {
+export function intentIdToBytes32(intentId: string): `0x${string}` {
   // If already hex
   if (intentId.startsWith('0x')) {
     return intentId as `0x${string}`
@@ -36,6 +36,7 @@ function intentIdToBytes32(intentId: string): `0x${string}` {
   // If base58/UUID style, hash it
   return keccak256(toBytes(intentId)) as `0x${string}`
 }
+
 function RouteComponent() {
   const { vpa, name, intent: intentId } = Route.useParams();
   const account = useActiveAccount();
@@ -43,6 +44,7 @@ function RouteComponent() {
   const intentSolutionsQuery = useQuery({ ...solutionsQueryOptions(intentId), refetchInterval: 2000 });
   const intentQuery = useQuery(intentQueryOptions(intentId));
 
+  const navigate = useNavigate();
 
   const lowestQuote = intentSolutionsQuery.data?.[0];
   const lowestQuoteAmount = intentSolutionsQuery.data?.[0]?.amountWei ? BigInt(intentSolutionsQuery.data?.[0].amountWei) : undefined;
@@ -84,32 +86,37 @@ function RouteComponent() {
         account.address
       ] as const;
 
-      console.log('Formatted solution:', formattedSolution);
-      console.log('Signature:', lowestQuote.signature);
-
-      // The contract function now expects a single struct
-      console.log(keccak256(stringToHex(
-        'IntentSolution(bytes32 intentId,string railType,string recipientAddress,uint256 railAmount,address paymentToken,uint256 paymentAmount,address bondToken,uint256 bondAmount,address intentCreator)'
-      )))
-
       const transaction = prepareContractCall({
         contract: zkUpiContract,
         method: "function commitToSolution((bytes32,string,string,uint256,address,uint256,address,uint256,address),bytes)" as const,
         params: [formattedSolution, lowestQuote.signature as Hex],
       });
 
-      const { transactionHash } = await sendTransaction({
+      const { transactionHash } = await sendAndConfirmTransaction({
         account,
         transaction,
       });
+
       console.log(transactionHash);
+      await intentAggregatorApi.post(`solutions/${lowestQuote.id}/accept`, {
+        json: {
+          commitmentTxHash: transactionHash
+        }
+      });
+
+      navigate({
+        to: "/pay/$vpa/$name/$intent/wait",
+        params: {
+          intent: intentId,
+          name, vpa
+        }
+      })
+
     },
     onError: (error) => {
       console.error(error)
     }
-  }
-
-  );
+  });
 
 
   if (loading) {
@@ -152,12 +159,15 @@ function RouteComponent() {
             </div>
 
             <div className="space-y-4">
+
               <div className="flex items-center justify-between text-sm">
                 <span className="text-muted-foreground">Quote amount</span>
                 <span className="font-mono">
                   {toTokens(BigInt(lowestQuote.amountWei), 6)} USDC
                 </span>
               </div>
+
+
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center">
                   <span className="text-muted-foreground mr-2">
@@ -184,6 +194,8 @@ function RouteComponent() {
                   <ArrowLeftRight className="h-4 w-4 ml-2 text-green-500" />
                 </div>
               </div>
+
+
               <div className="flex items-center justify-between text-sm">
                 <div className="flex items-center">
                   <span className="text-muted-foreground mr-2">
@@ -208,6 +220,22 @@ function RouteComponent() {
                   500 USDC
                 </span>
               </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Receiving At</span>
+                <span className="font-mono text-muted-foreground">
+                  {vpa}
+                </span>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Receiving Amount</span>
+                <span className="font-mono text-muted-foreground">
+                  {intentQuery.data?.railAmount ? toTokens(BigInt(intentQuery.data?.railAmount), 2) : "..."} INR
+                </span>
+              </div>
+
+
               <div className="pt-4 border-t border-border">
                 <div className="flex items-center justify-between">
                   <span className="text-muted-foreground">
@@ -237,6 +265,7 @@ function RouteComponent() {
           className="w-full btn-glossy"
           onClick={() => commitSolutionMutation.mutate()}
         >
+          {commitSolutionMutation.isPending && <Loader2 className="animate-spin" />}
           Confirm Payment
         </Button>
         <Link

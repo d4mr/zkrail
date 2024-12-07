@@ -19,6 +19,7 @@ import { Route as HomeNavImport } from './routes/home/_nav'
 import { Route as HomeNavScanImport } from './routes/home/_nav.scan'
 import { Route as HomeNavOrdersImport } from './routes/home/_nav.orders'
 import { Route as PayVpaNameIndexImport } from './routes/pay.$vpa.$name/index'
+import { Route as PayVpaNameIntentWaitImport } from './routes/pay.$vpa.$name/$intent.wait'
 import { Route as PayVpaNameIntentQuoteImport } from './routes/pay.$vpa.$name/$intent.quote'
 
 // Create Virtual Routes
@@ -65,6 +66,12 @@ const HomeNavOrdersRoute = HomeNavOrdersImport.update({
 const PayVpaNameIndexRoute = PayVpaNameIndexImport.update({
   id: '/pay/$vpa/$name/',
   path: '/pay/$vpa/$name/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PayVpaNameIntentWaitRoute = PayVpaNameIntentWaitImport.update({
+  id: '/pay/$vpa/$name/$intent/wait',
+  path: '/pay/$vpa/$name/$intent/wait',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -134,6 +141,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PayVpaNameIntentQuoteImport
       parentRoute: typeof rootRoute
     }
+    '/pay/$vpa/$name/$intent/wait': {
+      id: '/pay/$vpa/$name/$intent/wait'
+      path: '/pay/$vpa/$name/$intent/wait'
+      fullPath: '/pay/$vpa/$name/$intent/wait'
+      preLoaderRoute: typeof PayVpaNameIntentWaitImport
+      parentRoute: typeof rootRoute
+    }
   }
 }
 
@@ -172,6 +186,7 @@ export interface FileRoutesByFullPath {
   '/home/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
   '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
+  '/pay/$vpa/$name/$intent/wait': typeof PayVpaNameIntentWaitRoute
 }
 
 export interface FileRoutesByTo {
@@ -181,6 +196,7 @@ export interface FileRoutesByTo {
   '/home/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
   '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
+  '/pay/$vpa/$name/$intent/wait': typeof PayVpaNameIntentWaitRoute
 }
 
 export interface FileRoutesById {
@@ -193,6 +209,7 @@ export interface FileRoutesById {
   '/home/_nav/scan': typeof HomeNavScanRoute
   '/pay/$vpa/$name/': typeof PayVpaNameIndexRoute
   '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
+  '/pay/$vpa/$name/$intent/wait': typeof PayVpaNameIntentWaitRoute
 }
 
 export interface FileRouteTypes {
@@ -205,6 +222,7 @@ export interface FileRouteTypes {
     | '/home/scan'
     | '/pay/$vpa/$name'
     | '/pay/$vpa/$name/$intent/quote'
+    | '/pay/$vpa/$name/$intent/wait'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -213,6 +231,7 @@ export interface FileRouteTypes {
     | '/home/scan'
     | '/pay/$vpa/$name'
     | '/pay/$vpa/$name/$intent/quote'
+    | '/pay/$vpa/$name/$intent/wait'
   id:
     | '__root__'
     | '/'
@@ -223,6 +242,7 @@ export interface FileRouteTypes {
     | '/home/_nav/scan'
     | '/pay/$vpa/$name/'
     | '/pay/$vpa/$name/$intent/quote'
+    | '/pay/$vpa/$name/$intent/wait'
   fileRoutesById: FileRoutesById
 }
 
@@ -231,6 +251,7 @@ export interface RootRouteChildren {
   HomeRoute: typeof HomeRouteWithChildren
   PayVpaNameIndexRoute: typeof PayVpaNameIndexRoute
   PayVpaNameIntentQuoteRoute: typeof PayVpaNameIntentQuoteRoute
+  PayVpaNameIntentWaitRoute: typeof PayVpaNameIntentWaitRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
@@ -238,6 +259,7 @@ const rootRouteChildren: RootRouteChildren = {
   HomeRoute: HomeRouteWithChildren,
   PayVpaNameIndexRoute: PayVpaNameIndexRoute,
   PayVpaNameIntentQuoteRoute: PayVpaNameIntentQuoteRoute,
+  PayVpaNameIntentWaitRoute: PayVpaNameIntentWaitRoute,
 }
 
 export const routeTree = rootRoute
@@ -253,7 +275,8 @@ export const routeTree = rootRoute
         "/",
         "/home",
         "/pay/$vpa/$name/",
-        "/pay/$vpa/$name/$intent/quote"
+        "/pay/$vpa/$name/$intent/quote",
+        "/pay/$vpa/$name/$intent/wait"
       ]
     },
     "/": {
@@ -291,6 +314,9 @@ export const routeTree = rootRoute
     },
     "/pay/$vpa/$name/$intent/quote": {
       "filePath": "pay.$vpa.$name/$intent.quote.tsx"
+    },
+    "/pay/$vpa/$name/$intent/wait": {
+      "filePath": "pay.$vpa.$name/$intent.wait.tsx"
     }
   }
 }
