@@ -204,7 +204,7 @@ export class PaymentCli {
     throw new Error(`No solutions available after ${maxRetries} attempts`);
   }
 
-  private async pollIntentState(intentId: string, targetState: string, maxAttempts = 50): Promise<void> {
+  private async pollIntentState(intentId: string, targetState: string, maxAttempts = 100): Promise<void> {
     for (let i = 0; i < maxAttempts; i++) {
       const response = await axios.get<IntentState>(
         `${INTENT_AGGREGATOR_URL}/api/intents/${intentId}`
@@ -279,6 +279,19 @@ export class PaymentCli {
 
   private async settleSolution(intentId: string): Promise<string> {
     const wallet = await importWallet();
+
+    function intentIdToBytes32(intentId: string): `0x${string}` {
+      // If already hex
+      if (intentId.startsWith('0x')) {
+        return intentId as `0x${string}`;
+      }
+      // If base58/UUID style, hash it
+      const hashedId = keccak256(toBytes(intentId)) as `0x${string}`;
+      // Pad with leading zeros to ensure it's 32 bytes
+      return `0x${hashedId.slice(2).padStart(64, '0')}`;
+    }
+
+    intentId = intentIdToBytes32(intentId);
     
     const settleContract = await wallet.invokeContract({
       contractAddress: ZKRAIL_UPI_ADDRESS,
@@ -381,6 +394,25 @@ export class PaymentCli {
       console.log("Settling solution...");
       const settleTxHash = await this.settleSolution(bestSolution.intentId);
       console.log("Solution settled:", settleTxHash);
+
+      // Step 8: Notify API about settlement
+      try {
+        await axios.post(
+          `${INTENT_AGGREGATOR_URL}/api/solutions/${bestSolution.id}/settle`,
+          {
+            settlementTxHash: settleTxHash
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json'
+            }
+          }
+        );
+        console.log("Settlement recorded with API");
+      } catch (error) {
+        console.error("Failed to record settlement with API:", error);
+        // Don't throw here as the on-chain settlement was successful
+      }
 
     } catch (error) {
       console.error("Error processing payment prompt:", error);
