@@ -9,7 +9,7 @@ import * as schemas from "./schemas";
 import { openApiConfiguration } from "./openapi";
 import { Env } from "./types";
 import { dbMiddleware } from "./db/middleware";
-import { intents, IntentState, solutions } from "./db/schema";
+import { intents, solutions } from "./db/schema";
 import { createSelectSchema } from "drizzle-zod";
 import { apiReference } from "@scalar/hono-api-reference";
 import { eq } from "drizzle-orm";
@@ -43,16 +43,16 @@ const createIntent = createRoute({
 });
 
 api.openapi(createIntent, async (c) => {
-  const db = drizzle(c.env.DB);
   const body = c.req.valid("json");
 
-  const intent = {
-    id: createId(),
-    ...body,
-    state: IntentState.CREATED,
-  };
-
-  await db.insert(intents).values(intent);
+  const [intent] = await c.var.db
+    .insert(intents)
+    .values({
+      id: createId(),
+      ...body,
+      state: "CREATED",
+    })
+    .returning();
 
   return c.json({ intentId: intent.id });
 });
@@ -259,7 +259,7 @@ api.openapi(acceptSolution, async (c) => {
   await c.var.db
     .update(intents)
     .set({
-      state: IntentState.SOLUTION_COMMITTED,
+      state: "SOLUTION_COMMITTED",
       winningSolutionId: solution.id,
     })
     .where(eq(intents.id, solution.intentId));
@@ -311,21 +311,199 @@ api.openapi(claimPayment, async (c) => {
 
   const body = c.req.valid("json");
 
-  await c.var.db.transaction(async (tx) => {
-    // Update solution with payment metadata
-    await tx
-      .update(solutions)
-      .set({
-        paymentMetadata: JSON.stringify(body.paymentMetadata),
-      })
-      .where(eq(solutions.id, solution.id));
+  // Update solution with payment metadata
+  await c.var.db
+    .update(solutions)
+    .set({
+      paymentMetadata: JSON.stringify(body.paymentMetadata),
+    })
+    .where(eq(solutions.id, solution.id));
 
-    // Update intent state
-    await tx
-      .update(intents)
-      .set({ state: IntentState.PAYMENT_CLAIMED })
-      .where(eq(intents.id, solution.intentId));
+  // Update intent state
+  await c.var.db
+    .update(intents)
+    .set({ state: "PAYMENT_CLAIMED" })
+    .where(eq(intents.id, solution.intentId));
+
+  return new Response(null, { status: 204 });
+});
+
+const settleSolution = createRoute({
+  method: "post",
+  path: "/api/solutions/:id/settle",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            settlementTxHash: z
+              .string()
+              .regex(/^0x[a-fA-F0-9]{64}$/, "Invalid transaction hash format"),
+          }),
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: "Solution settled successfully",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.object({
+              code: z.literal("NOT_FOUND"),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Solution not found",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.object({
+              code: z.literal("INVALID_STATE"),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Invalid solution state for settlement",
+    },
+  },
+});
+
+api.openapi(settleSolution, async (c) => {
+  const solution = await c.var.db.query.solutions.findFirst({
+    where: (solutions, { eq }) => eq(solutions.id, c.req.param("id")),
+    with: {
+      intent: true,
+    },
   });
+
+  if (!solution) {
+    return c.json(SOLUTION_NOT_FOUND_ERROR, 404);
+  }
+
+  if (solution.intent.state !== "PAYMENT_CLAIMED") {
+    return c.json(
+      {
+        error: {
+          code: "INVALID_STATE",
+          message: "Solution must be in PAYMENT_CLAIMED state to settle",
+        },
+      },
+      400
+    );
+  }
+
+  const body = c.req.valid("json");
+
+  // Update solution with settlement tx
+  await c.var.db
+    .update(solutions)
+    .set({
+      settlementTxHash: body.settlementTxHash,
+    })
+    .where(eq(solutions.id, solution.id));
+
+  // Update intent state to reflect settlement
+  await c.var.db
+    .update(intents)
+    .set({ state: "SETTLED" })
+    .where(eq(intents.id, solution.intentId));
+
+  return new Response(null, { status: 204 });
+});
+
+const resolveSolution = createRoute({
+  method: "post",
+  path: "/api/solutions/:id/resolve",
+  request: {
+    body: {
+      content: {
+        "application/json": {
+          schema: schemas.ResolveSolutionSchema,
+        },
+      },
+    },
+  },
+  responses: {
+    204: {
+      description: "Solution resolved successfully through dispute resolution",
+    },
+    404: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.object({
+              code: z.literal("NOT_FOUND"),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Solution not found",
+    },
+    400: {
+      content: {
+        "application/json": {
+          schema: z.object({
+            error: z.object({
+              code: z.literal("INVALID_STATE"),
+              message: z.string(),
+            }),
+          }),
+        },
+      },
+      description: "Invalid solution state for resolution",
+    },
+  },
+});
+
+api.openapi(resolveSolution, async (c) => {
+  const solution = await c.var.db.query.solutions.findFirst({
+    where: (solutions, { eq }) => eq(solutions.id, c.req.param("id")),
+    with: {
+      intent: true,
+    },
+  });
+
+  if (!solution) {
+    return c.json(SOLUTION_NOT_FOUND_ERROR, 404);
+  }
+
+  if (solution.intent.state !== "PAYMENT_CLAIMED") {
+    return c.json(
+      {
+        error: {
+          code: "INVALID_STATE",
+          message:
+            "Solution must be in PAYMENT_CLAIMED state to resolve via dispute",
+        },
+      },
+      400
+    );
+  }
+
+  const body = c.req.valid("json");
+
+  // Sequential updates - no transaction
+  await c.var.db
+    .update(solutions)
+    .set({
+      resolutionTxHash: body.resolutionTxHash,
+    })
+    .where(eq(solutions.id, solution.id));
+
+  await c.var.db
+    .update(intents)
+    .set({ state: "RESOLVED" })
+    .where(eq(intents.id, solution.intentId));
 
   return new Response(null, { status: 204 });
 });

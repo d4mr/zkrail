@@ -1,6 +1,7 @@
 // schemas.ts
 import { z } from "@hono/zod-openapi";
 import { getAddress } from "thirdweb/utils";
+import { railTypeSchema } from "./db/schema";
 
 // Custom Ethereum address refinement
 const addressSchema = z.string().transform((address, ctx) => {
@@ -21,7 +22,7 @@ export type Address = z.infer<typeof addressSchema>;
 // Common schemas
 const tokenAmountSchema = z.string().regex(/^\d+$/); // Only positive integers as strings
 const chainIdSchema = z.number().int().positive();
-const railTypeSchema = z.enum(["UPI", "BITCOIN"]);
+
 
 // Request schemas
 export const CreateIntentSchema = z.object({
@@ -44,13 +45,21 @@ export const AcceptSolutionSchema = z.object({
   commitmentTxHash: z.string(),
 });
 
-export const ClaimPaymentSchema = z.object({
-  paymentMetadata: z.object({
-    transactionId: z.string(),
-    timestamp: z.string(),
-    railSpecificData: z.record(z.unknown()).optional(),
-  }),
-});
+export const ClaimPaymentSchema = z
+  .object({
+    paymentMetadata: z.object({
+      transactionId: z.string(),
+      timestamp: z.coerce.date(), // Will accept ISO string and coerce to Date
+      railSpecificData: z.record(z.unknown()).optional(),
+    }),
+  })
+  .transform((data) => ({
+    paymentMetadata: {
+      ...data.paymentMetadata,
+      // Transform back to ISO string for storage
+      timestamp: data.paymentMetadata.timestamp.toISOString(),
+    },
+  }));
 
 export const ResolveSolutionSchema = z.object({
   resolutionTxHash: z.string(),

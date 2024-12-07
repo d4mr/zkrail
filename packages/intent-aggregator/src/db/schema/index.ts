@@ -1,33 +1,33 @@
-import { sql } from "drizzle-orm";
+import { relations, sql } from "drizzle-orm";
+import { z } from "@hono/zod-openapi";
+
 import { sqliteTable, text, integer, index } from "drizzle-orm/sqlite-core";
 
-// Enums & Constants
-export const PaymentRailType = {
-  UPI: "UPI",
-  BITCOIN: "BITCOIN",
-} as const;
+export const railTypeSchema = z.enum(["UPI", "BITCOIN"]);
 
-export type PaymentRailType =
-  (typeof PaymentRailType)[keyof typeof PaymentRailType];
+// CREATED -> SOLUTION_COMMITTED -> PAYMENT_CLAIMED -> SETTLED   (Happy path)
+//                                                \-> RESOLVED  (Dispute path)
+
+export const intentStateSchema = z.enum([
+  "CREATED",
+  "SOLUTION_COMMITTED",
+  "PAYMENT_CLAIMED",
+  "RESOLVED",
+  "SETTLED",
+]);
+
+export type PaymentRailType = z.infer<typeof railTypeSchema>;
+export type IntentStateType = z.infer<typeof intentStateSchema>;
 
 export const RAIL_CURRENCY = {
-  [PaymentRailType.UPI]: "INR",
-  [PaymentRailType.BITCOIN]: "BTC",
+  UPI: "INR",
+  BITCOIN: "BTC",
 } as const;
 
 export const RAIL_SMALLEST_UNIT = {
-  [PaymentRailType.UPI]: "paise",
-  [PaymentRailType.BITCOIN]: "sats",
+  UPI: "paise",
+  BITCOIN: "sats",
 } as const;
-
-export const IntentState = {
-  CREATED: "CREATED",
-  SOLUTION_COMMITTED: "SOLUTION_COMMITTED",
-  PAYMENT_CLAIMED: "PAYMENT_CLAIMED",
-  RESOLVED: "RESOLVED",
-} as const;
-
-export type IntentStateType = (typeof IntentState)[keyof typeof IntentState];
 
 // Tables
 export const intents = sqliteTable(
@@ -49,10 +49,7 @@ export const intents = sqliteTable(
       .notNull()
       .default(sql`CURRENT_TIMESTAMP`),
 
-    state: text("state")
-      .notNull()
-      .$type<IntentStateType>()
-      .default(IntentState.CREATED),
+    state: text("state").notNull().$type<IntentStateType>().default("CREATED"),
     winningSolutionId: text("winning_solution_id"),
     resolutionTxHash: text("resolution_tx_hash"),
   },
@@ -81,6 +78,13 @@ export const solutions = sqliteTable(
       .default(sql`CURRENT_TIMESTAMP`),
 
     commitmentTxHash: text("commitment_tx_hash"),
+    
+    // Settlement is the optimistic path
+    settlementTxHash: text("settlement_tx_hash"),
+
+    // Resolution is the dispute path
+    resolutionTxHash: text("resolution_tx_hash"),
+
     paymentMetadata: text("payment_metadata"),
   },
   (table) => ({
@@ -89,32 +93,9 @@ export const solutions = sqliteTable(
   })
 );
 
-// Types for payment metadata
-export type PaymentMetadata = {
-  transactionId: string;
-  timestamp: string; // ISO string
-  railSpecificData?: Record<string, any>; // Flexible storage for rail-specific proof
-};
-
-// Helper functions
-export function parsePaymentMetadata(json: string): PaymentMetadata {
-  const data = JSON.parse(json);
-  if (!data.transactionId || !data.timestamp) {
-    throw new Error("Invalid payment metadata format");
-  }
-  return data as PaymentMetadata;
-}
-
-export function formatPaymentMetadata(metadata: PaymentMetadata): string {
-  return JSON.stringify(metadata);
-}
-
-export function validateWeiAmount(amount: string): boolean {
-  try {
-    if (amount.includes(".") || amount.includes("-")) return false;
-    BigInt(amount);
-    return true;
-  } catch {
-    return false;
-  }
-}
+export const solutionsRelations = relations(solutions, ({ one }) => ({
+  intent: one(intents, {
+    fields: [solutions.intentId],
+    references: [intents.id],
+  }),
+}));

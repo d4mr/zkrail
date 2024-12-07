@@ -26,9 +26,9 @@ const getCredentials = () => {
   const prod = {
     driver: "d1-http",
     dbCredentials: {
-      databaseId: process.env.CLOUDFLARE_D1_ID,
+      databaseId: process.env.CLOUDFLARE_DATABASE_ID,
       accountId: process.env.CLOUDFLARE_ACCOUNT_ID,
-      token: process.env.CLOUDFLARE_API_TOKEN,
+      token: process.env.CLOUDFLARE_D1_TOKEN,
     },
   };
 
@@ -43,8 +43,8 @@ const getCredentials = () => {
 
 export default defineConfig({
   dialect: "sqlite",
-  schema: "./db/schema/index.ts",
-  out: "./db/migrations",
+  schema: "./src/db/schema/index.ts",
+  out: "./migrations",
   tablesFilter: ["/^(?!.*_cf_KV).*$/"],
   ...getCredentials(),
 }) satisfies Config;

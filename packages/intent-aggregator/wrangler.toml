@@ -8,6 +8,9 @@ database_name = "zkrail-intent-aggregator-db"
 database_id = "8a0c78d4-f343-4fbc-be93-1f81523dfeff"
 migrations_dir = "migrations"
 
+[observability.logs]
+enabled = true
+
 # compatibility_flags = [ "nodejs_compat" ]
 
 # [vars]
