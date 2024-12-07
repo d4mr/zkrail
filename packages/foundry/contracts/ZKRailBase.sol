@@ -195,4 +195,8 @@ abstract contract ZKRailBase is IZKRail, EIP712 {
         bytes32 intentId,
         bytes calldata proof
     ) internal virtual returns (bool);
+
+    function DOMAIN_SEPARATOR() public view returns (bytes32) {
+        return _domainSeparatorV4();
+    }
 }

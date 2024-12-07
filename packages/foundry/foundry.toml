@@ -8,6 +8,7 @@ optimizer_runs = 200
 
 
 [rpc_endpoints]
+local = "http://localhost:8545"
 amoy = "https://80002.rpc.thirdweb.com"
 base_sepolia = "https://84532.rpc.thirdweb.com"
 bsc_testnet = "https://97.rpc.thirdweb.com"
