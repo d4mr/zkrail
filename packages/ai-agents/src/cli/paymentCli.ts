@@ -9,6 +9,7 @@ import { importWallet } from '../lib/coinbase';
 
 
 const PAYMENT_SERVER_URL = 'http://localhost:4000';
+const INTENT_AGGREGATOR_URL = 'https://zkrail-intent-aggregator.d4mr.workers.dev';
 const ERC20_ABI = [
   {
     name: 'approve',
@@ -25,6 +26,21 @@ const ERC20_ABI = [
 interface ExtractedPayment {
   amount: number;
   upiId: string;
+}
+
+interface PaymentSolution {
+  id: string;
+  intentId: string;
+  solverAddress: string;
+  amountWei: string;
+  signature: string;
+  createdAt: string;
+  commitmentTxHash?: string;
+  paymentMetadata?: any;
+}
+
+interface IntentResponse {
+  intentId: string;
 }
 
 export class PaymentCli {
@@ -113,26 +129,47 @@ export class PaymentCli {
       const details = await this.extractPaymentDetails(prompt);
       console.log("Extracted payment details:", details);
 
-      // Step 2: Get quotation from server
-      const intent: PaymentIntent = {
-        upiId: details.upiId,
-        walletAddress: process.env.RECIPIENT_WALLET_ADDRESS!, // Set this in .env
-        amountInPaisa: details.amount
+      // Step 2: Create payment intent
+      const intent = {
+        paymentToken: USDC_CONTRACT_ADDRESS,
+        paymentTokenAmount: details.amount.toString(),
+        railType: "UPI",
+        recipientAddress: details.upiId,
+        railAmount: details.amount.toString(),
+        creatorAddress: process.env.SENDER_WALLET_ADDRESS!, // Updated to use sender address from coinbase.ts
+        chainId: 84532 // Base Sepolia chain ID
       };
 
-      console.log("Getting quotation...");
-      const quotationResponse = await axios.post(
-        `${PAYMENT_SERVER_URL}/api/payment/quote`,
+      console.log("Creating intent...");
+      const intentResponse = await axios.post<IntentResponse>(
+        `${INTENT_AGGREGATOR_URL}/api/intents`,
         intent
       );
-      const quotation: PaymentQuotation = quotationResponse.data;
-      console.log("Received quotation:", quotation);
+      const { intentId } = intentResponse.data;
+      console.log("Intent created:", intentId);
 
-      // Step 3: Approve USDC transfer (150% of amount)
+      // Step 3: Get solutions (quotations)
+      console.log("Fetching solutions...");
+      const solutionsResponse = await axios.get<{ solutions: PaymentSolution[] }>(
+        `${INTENT_AGGREGATOR_URL}/api/intents/${intentId}/solutions`
+      );
+      const solutions = solutionsResponse.data.solutions;
+      console.log("Received solutions:", solutions);
+
+      if (solutions.length === 0) {
+        throw new Error('No solutions available for this payment');
+      }
+
+      // Select best solution (lowest amount)
+      const bestSolution = solutions.reduce((prev, current) => 
+        BigInt(prev.amountWei) < BigInt(current.amountWei) ? prev : current
+      );
+
+      // Step 4: Approve USDC transfer
       console.log("Approving USDC transfer...");
       const approvalResult = await this.approveUSDC(
-        quotation.cryptoAmount,
-        quotation.walletAddress
+        parseFloat(bestSolution.amountWei) / 1e6, // Convert from Wei to USDC
+        bestSolution.solverAddress
       );
       console.log("Approval completed:", approvalResult);
 
