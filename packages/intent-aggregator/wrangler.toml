@@ -1,0 +1,37 @@
+name = "zkrail-intent-aggregator"
+main = "src/index.ts"
+compatibility_date = "2024-12-06"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "zkrail-intent-aggregator-db"
+database_id = "8a0c78d4-f343-4fbc-be93-1f81523dfeff"
+migrations_dir = "migrations"
+
+[observability.logs]
+enabled = true
+
+# compatibility_flags = [ "nodejs_compat" ]
+
+# [vars]
+# MY_VAR = "my-variable"
+
+# [[kv_namespaces]]
+# binding = "MY_KV_NAMESPACE"
+# id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+
+# [[r2_buckets]]
+# binding = "MY_BUCKET"
+# bucket_name = "my-bucket"
+
+# [[d1_databases]]
+# binding = "DB"
+# database_name = "my-database"
+# database_id = ""
+
+# [ai]
+# binding = "AI"
+
+# [observability]
+# enabled = true
+# head_sampling_rate = 1

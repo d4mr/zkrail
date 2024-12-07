@@ -8,23 +8,69 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
+import { createFileRoute } from '@tanstack/react-router'
+
 // Import Routes
 
 import { Route as rootRoute } from './routes/__root'
-import { Route as AboutImport } from './routes/about'
 import { Route as IndexImport } from './routes/index'
+import { Route as HomeIndexImport } from './routes/home/index'
+import { Route as HomeNavImport } from './routes/home/_nav'
+import { Route as HomeNavScanImport } from './routes/home/_nav.scan'
+import { Route as HomeNavOrdersImport } from './routes/home/_nav.orders'
+import { Route as PayVpaNameIndexImport } from './routes/pay.$vpa.$name/index'
+import { Route as PayVpaNameIntentQuoteImport } from './routes/pay.$vpa.$name/$intent.quote'
+
+// Create Virtual Routes
+
+const HomeImport = createFileRoute('/home')()
 
 // Create/Update Routes
 
-const AboutRoute = AboutImport.update({
-  id: '/about',
-  path: '/about',
+const HomeRoute = HomeImport.update({
+  id: '/home',
+  path: '/home',
   getParentRoute: () => rootRoute,
 } as any)
 
 const IndexRoute = IndexImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const HomeIndexRoute = HomeIndexImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => HomeRoute,
+} as any)
+
+const HomeNavRoute = HomeNavImport.update({
+  id: '/_nav',
+  getParentRoute: () => HomeRoute,
+} as any)
+
+const HomeNavScanRoute = HomeNavScanImport.update({
+  id: '/scan',
+  path: '/scan',
+  getParentRoute: () => HomeNavRoute,
+} as any)
+
+const HomeNavOrdersRoute = HomeNavOrdersImport.update({
+  id: '/orders',
+  path: '/orders',
+  getParentRoute: () => HomeNavRoute,
+} as any)
+
+const PayVpaNameIndexRoute = PayVpaNameIndexImport.update({
+  id: '/pay/$vpa/$name/',
+  path: '/pay/$vpa/$name/',
+  getParentRoute: () => rootRoute,
+} as any)
+
+const PayVpaNameIntentQuoteRoute = PayVpaNameIntentQuoteImport.update({
+  id: '/pay/$vpa/$name/$intent/quote',
+  path: '/pay/$vpa/$name/$intent/quote',
   getParentRoute: () => rootRoute,
 } as any)
 
@@ -39,11 +85,53 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexImport
       parentRoute: typeof rootRoute
     }
-    '/about': {
-      id: '/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof AboutImport
+    '/home': {
+      id: '/home'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeImport
+      parentRoute: typeof rootRoute
+    }
+    '/home/_nav': {
+      id: '/home/_nav'
+      path: '/home'
+      fullPath: '/home'
+      preLoaderRoute: typeof HomeNavImport
+      parentRoute: typeof HomeRoute
+    }
+    '/home/': {
+      id: '/home/'
+      path: '/'
+      fullPath: '/home/'
+      preLoaderRoute: typeof HomeIndexImport
+      parentRoute: typeof HomeImport
+    }
+    '/home/_nav/orders': {
+      id: '/home/_nav/orders'
+      path: '/orders'
+      fullPath: '/home/orders'
+      preLoaderRoute: typeof HomeNavOrdersImport
+      parentRoute: typeof HomeNavImport
+    }
+    '/home/_nav/scan': {
+      id: '/home/_nav/scan'
+      path: '/scan'
+      fullPath: '/home/scan'
+      preLoaderRoute: typeof HomeNavScanImport
+      parentRoute: typeof HomeNavImport
+    }
+    '/pay/$vpa/$name/': {
+      id: '/pay/$vpa/$name/'
+      path: '/pay/$vpa/$name'
+      fullPath: '/pay/$vpa/$name'
+      preLoaderRoute: typeof PayVpaNameIndexImport
+      parentRoute: typeof rootRoute
+    }
+    '/pay/$vpa/$name/$intent/quote': {
+      id: '/pay/$vpa/$name/$intent/quote'
+      path: '/pay/$vpa/$name/$intent/quote'
+      fullPath: '/pay/$vpa/$name/$intent/quote'
+      preLoaderRoute: typeof PayVpaNameIntentQuoteImport
       parentRoute: typeof rootRoute
     }
   }
@@ -51,39 +139,105 @@ declare module '@tanstack/react-router' {
 
 // Create and export the route tree
 
+interface HomeNavRouteChildren {
+  HomeNavOrdersRoute: typeof HomeNavOrdersRoute
+  HomeNavScanRoute: typeof HomeNavScanRoute
+}
+
+const HomeNavRouteChildren: HomeNavRouteChildren = {
+  HomeNavOrdersRoute: HomeNavOrdersRoute,
+  HomeNavScanRoute: HomeNavScanRoute,
+}
+
+const HomeNavRouteWithChildren =
+  HomeNavRoute._addFileChildren(HomeNavRouteChildren)
+
+interface HomeRouteChildren {
+  HomeNavRoute: typeof HomeNavRouteWithChildren
+  HomeIndexRoute: typeof HomeIndexRoute
+}
+
+const HomeRouteChildren: HomeRouteChildren = {
+  HomeNavRoute: HomeNavRouteWithChildren,
+  HomeIndexRoute: HomeIndexRoute,
+}
+
+const HomeRouteWithChildren = HomeRoute._addFileChildren(HomeRouteChildren)
+
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/home': typeof HomeNavRouteWithChildren
+  '/home/': typeof HomeIndexRoute
+  '/home/orders': typeof HomeNavOrdersRoute
+  '/home/scan': typeof HomeNavScanRoute
+  '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/home': typeof HomeIndexRoute
+  '/home/orders': typeof HomeNavOrdersRoute
+  '/home/scan': typeof HomeNavScanRoute
+  '/pay/$vpa/$name': typeof PayVpaNameIndexRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRoutesById {
   __root__: typeof rootRoute
   '/': typeof IndexRoute
-  '/about': typeof AboutRoute
+  '/home': typeof HomeRouteWithChildren
+  '/home/_nav': typeof HomeNavRouteWithChildren
+  '/home/': typeof HomeIndexRoute
+  '/home/_nav/orders': typeof HomeNavOrdersRoute
+  '/home/_nav/scan': typeof HomeNavScanRoute
+  '/pay/$vpa/$name/': typeof PayVpaNameIndexRoute
+  '/pay/$vpa/$name/$intent/quote': typeof PayVpaNameIntentQuoteRoute
 }
 
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about'
+  fullPaths:
+    | '/'
+    | '/home'
+    | '/home/'
+    | '/home/orders'
+    | '/home/scan'
+    | '/pay/$vpa/$name'
+    | '/pay/$vpa/$name/$intent/quote'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/about'
-  id: '__root__' | '/' | '/about'
+  to:
+    | '/'
+    | '/home'
+    | '/home/orders'
+    | '/home/scan'
+    | '/pay/$vpa/$name'
+    | '/pay/$vpa/$name/$intent/quote'
+  id:
+    | '__root__'
+    | '/'
+    | '/home'
+    | '/home/_nav'
+    | '/home/'
+    | '/home/_nav/orders'
+    | '/home/_nav/scan'
+    | '/pay/$vpa/$name/'
+    | '/pay/$vpa/$name/$intent/quote'
   fileRoutesById: FileRoutesById
 }
 
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  AboutRoute: typeof AboutRoute
+  HomeRoute: typeof HomeRouteWithChildren
+  PayVpaNameIndexRoute: typeof PayVpaNameIndexRoute
+  PayVpaNameIntentQuoteRoute: typeof PayVpaNameIntentQuoteRoute
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  AboutRoute: AboutRoute,
+  HomeRoute: HomeRouteWithChildren,
+  PayVpaNameIndexRoute: PayVpaNameIndexRoute,
+  PayVpaNameIntentQuoteRoute: PayVpaNameIntentQuoteRoute,
 }
 
 export const routeTree = rootRoute
@@ -97,14 +251,46 @@ export const routeTree = rootRoute
       "filePath": "__root.tsx",
       "children": [
         "/",
-        "/about"
+        "/home",
+        "/pay/$vpa/$name/",
+        "/pay/$vpa/$name/$intent/quote"
       ]
     },
     "/": {
       "filePath": "index.tsx"
     },
-    "/about": {
-      "filePath": "about.tsx"
+    "/home": {
+      "filePath": "home",
+      "children": [
+        "/home/_nav",
+        "/home/"
+      ]
+    },
+    "/home/_nav": {
+      "filePath": "home/_nav.tsx",
+      "parent": "/home",
+      "children": [
+        "/home/_nav/orders",
+        "/home/_nav/scan"
+      ]
+    },
+    "/home/": {
+      "filePath": "home/index.tsx",
+      "parent": "/home"
+    },
+    "/home/_nav/orders": {
+      "filePath": "home/_nav.orders.tsx",
+      "parent": "/home/_nav"
+    },
+    "/home/_nav/scan": {
+      "filePath": "home/_nav.scan.tsx",
+      "parent": "/home/_nav"
+    },
+    "/pay/$vpa/$name/": {
+      "filePath": "pay.$vpa.$name/index.tsx"
+    },
+    "/pay/$vpa/$name/$intent/quote": {
+      "filePath": "pay.$vpa.$name/$intent.quote.tsx"
     }
   }
 }

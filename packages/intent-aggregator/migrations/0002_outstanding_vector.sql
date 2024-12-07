@@ -1,0 +1,1 @@
+ALTER TABLE `intents` DROP COLUMN `payment_token_amount`;

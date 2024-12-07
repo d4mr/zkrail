@@ -1,0 +1,28 @@
+{
+  "name": "@zkrail/intent-aggregator",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy --minify",
+    "db:generate": "NODE_ENV=production drizzle-kit generate",
+    "db:up": "drizzle-kit up",
+    "db:up:prod": "NODE_ENV=production drizzle-kit up",
+    "db:push": "drizzle-kit push",
+    "db:push:prod": "NODE_ENV=production drizzle-kit push",
+    "db:studio:prod": "NODE_ENV=production drizzle-kit studio"
+  },
+  "dependencies": {
+    "@hono/zod-openapi": "^0.18.3",
+    "@paralleldrive/cuid2": "^2.2.2",
+    "@scalar/hono-api-reference": "^0.5.163",
+    "drizzle-orm": "^0.37.0",
+    "drizzle-zod": "^0.5.1",
+    "hono": "^4.6.13",
+    "thirdweb": "^5.74.0"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241112.0",
+    "@types/node": "^22.10.1",
+    "drizzle-kit": "^0.29.1",
+    "wrangler": "^3.88.0"
+  }
+}
