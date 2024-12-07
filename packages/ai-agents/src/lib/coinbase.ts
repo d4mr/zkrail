@@ -15,8 +15,14 @@ const apiKeyString = CDP_API_KEY_PRIVATE_KEY as string;
 
 Coinbase.configure({
   apiKeyName: CDP_API_KEY_NAME as string,
-  privateKey: apiKeyString.replaceAll("\\n", "\n") as string,
+  privateKey: apiKeyString.replace(/\\n/g, "\n") as string,
 });
+
+interface StoredWalletData {
+  walletId: string;
+  seed: string;
+  defaultAddressId: string;
+}
 
 export async function importWallet(minEthBalance: number = 10, minUsdcBalance: number = 10): Promise<Wallet> {
   console.log(`Importing wallet with minimum ETH balance: ${minEthBalance}, minimum USDC balance: ${minUsdcBalance}`);
@@ -25,26 +31,27 @@ export async function importWallet(minEthBalance: number = 10, minUsdcBalance: n
   let wallet: Wallet;
 
   try {
-    const seedData = JSON.parse(WALLET_DATA || "{}");
-    console.log(`Parsed wallet data. Found ${Object.keys(seedData).length} wallet(s)`);
+    const seedData = JSON.parse(WALLET_DATA || "{}") as StoredWalletData;
+    console.log(`Parsed wallet data`);
 
-    if (Object.keys(seedData).length === 0) {
+    if (!seedData.seed || !seedData.walletId) {
       console.log('No existing wallet found. Creating a new wallet...');
       wallet = await Wallet.create();
       let exportData = await wallet.export();
-      const newWalletData = JSON.stringify({ 
-        [exportData['walletId'] as string]: { 
-          'seed': exportData['seed'] as string 
-        } 
+      const newWalletData = JSON.stringify({
+        walletId: exportData.walletId,
+        seed: exportData.seed,
+        defaultAddressId: await (await wallet.getDefaultAddress()).getId()
       });
-      console.log(`Created new wallet: ${exportData['walletId']}`);
+      console.log(`Created new wallet: ${exportData.walletId}`);
       process.env.WALLET_DATA = newWalletData;
     } else {
       console.log('Existing wallet found. Importing...');
-      const walletId = Object.keys(seedData)[0];
-      const seed = seedData[walletId]?.seed;
-      wallet = await Wallet.import({ seed, walletId });
-      console.log(`Imported existing wallet with ID: ${walletId}`);
+      wallet = await Wallet.import({ 
+        seed: seedData.seed,
+        walletId: seedData.walletId 
+      });
+      console.log(`Imported existing wallet with ID: ${seedData.walletId}`);
     }
 
     // Get and log the wallet address
@@ -59,9 +66,9 @@ export async function importWallet(minEthBalance: number = 10, minUsdcBalance: n
     console.log(`Current USDC Balance: ${currentUsdcBalance.toString()}`);
     if (currentUsdcBalance.lessThan(minUsdcBalance)) {
       console.log(`Funding wallet with USDC...`);
-      const currentUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
-
       await wallet.faucet(Coinbase.assets.Usdc);
+      const newUsdcBalance = await wallet.getBalance(Coinbase.assets.Usdc);
+      console.log(`New USDC Balance: ${newUsdcBalance.toString()}`);
     }
 
     // Fund ETH if needed
@@ -70,9 +77,8 @@ export async function importWallet(minEthBalance: number = 10, minUsdcBalance: n
     if (currentEthBalance.lessThan(minEthBalance)) {
       console.log(`Funding wallet with ETH...`);
       await wallet.faucet();
-      const currentEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
-
-      console.log(`Current ETH Balance: ${currentEthBalance.toString()}`);
+      const newEthBalance = await wallet.getBalance(Coinbase.assets.Eth);
+      console.log(`New ETH Balance: ${newEthBalance.toString()}`);
     }
 
     return wallet;

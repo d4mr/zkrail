@@ -121,6 +121,28 @@ export class PaymentCli {
     }
   }
 
+  private async getSolutionsWithRetry(intentId: string, maxRetries = 50, delaySeconds = 3): Promise<PaymentSolution[]> {
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+      console.log(`Fetching solutions (attempt ${attempt}/${maxRetries})...`);
+      
+      const solutionsResponse = await axios.get<{ solutions: PaymentSolution[] }>(
+        `${INTENT_AGGREGATOR_URL}/api/intents/${intentId}/solutions`
+      );
+      const solutions = solutionsResponse.data.solutions;
+      
+      if (solutions.length > 0) {
+        return solutions;
+      }
+      
+      if (attempt < maxRetries) {
+        console.log(`No solutions yet, waiting ${delaySeconds} seconds before retry...`);
+        await new Promise(resolve => setTimeout(resolve, delaySeconds * 1000));
+      }
+    }
+    
+    throw new Error(`No solutions available after ${maxRetries} attempts`);
+  }
+
   async processPaymentPrompt(prompt: string) {
     try {
       console.log("Processing payment prompt...");
@@ -148,12 +170,9 @@ export class PaymentCli {
       const { intentId } = intentResponse.data;
       console.log("Intent created:", intentId);
 
-      // Step 3: Get solutions (quotations)
+      // Step 3: Get solutions (quotations) with retry
       console.log("Fetching solutions...");
-      const solutionsResponse = await axios.get<{ solutions: PaymentSolution[] }>(
-        `${INTENT_AGGREGATOR_URL}/api/intents/${intentId}/solutions`
-      );
-      const solutions = solutionsResponse.data.solutions;
+      const solutions = await this.getSolutionsWithRetry(intentId);
       console.log("Received solutions:", solutions);
 
       if (solutions.length === 0) {
